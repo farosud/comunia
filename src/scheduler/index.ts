@@ -5,6 +5,10 @@ import { createFeedbackJob } from './jobs/feedback.js'
 import { createReflectionJob } from './jobs/reflection.js'
 import { createDigestJob } from './jobs/digest.js'
 import { createReengagementJob } from './jobs/reengagement.js'
+import { createVenueResearchJob } from './jobs/venue-research.js'
+import { createEventIdeationJob } from './jobs/event-ideation.js'
+import { createSubgroupAnalysisJob } from './jobs/subgroup-analysis.js'
+import { createProfileEnrichmentJob } from './jobs/profile-enrichment.js'
 import type { Config } from '../config.js'
 
 export class Scheduler {
@@ -18,6 +22,10 @@ export class Scheduler {
       createReflectionJob(config.scheduler.reflectionCron),
       createDigestJob(config.scheduler.digestCron),
       createReengagementJob(),
+      createVenueResearchJob(config.scheduler.venueResearchCron),
+      createEventIdeationJob(config.scheduler.eventIdeationCron),
+      createSubgroupAnalysisJob(config.scheduler.subgroupAnalysisCron),
+      createProfileEnrichmentJob(),
     ]
   }
 
