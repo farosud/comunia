@@ -6,7 +6,7 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-green.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.x-blue.svg)
-<!-- ![CI](https://github.com/your-org/comunia/actions/workflows/ci.yml/badge.svg) -->
+<!-- ![CI](https://github.com/farosud/comunia/actions/workflows/ci.yml/badge.svg) -->
 <!-- ![npm](https://img.shields.io/npm/v/comunia) -->
 
 ---
@@ -18,7 +18,7 @@ Think of it as a tireless community organizer that never sleeps, never forgets a
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-org/comunia
+git clone https://github.com/farosud/comunia
 cd comunia
 npx comunia init    # Interactive setup wizard — creates .env, agent files, detects groups
 docker compose up   # Or: npm run dev
