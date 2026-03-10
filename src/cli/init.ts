@@ -32,7 +32,7 @@ export async function runInit() {
 
     const token = await p.text({
       message: 'Paste your Telegram bot token:',
-      validate: (v) => v.includes(':') ? undefined : 'Token should contain a colon (:)',
+      validate: (v) => v && v.includes(':') ? undefined : 'Token should contain a colon (:)',
     })
     if (p.isCancel(token)) return process.exit(0)
     telegramToken = token
@@ -115,7 +115,7 @@ export async function runInit() {
 
   const apiKey = await p.text({
     message: `${llmProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API key:`,
-    validate: (v) => v.length > 10 ? undefined : 'Key seems too short',
+    validate: (v) => v && v.length > 10 ? undefined : 'Key seems too short',
   })
   if (p.isCancel(apiKey)) return process.exit(0)
 

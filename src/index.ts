@@ -71,7 +71,7 @@ async function main() {
   const sendDm = async (userId: string, message: string) => {
     for (const bridge of bridges) {
       try {
-        await bridge.sendMessage({ chatId: userId, text: message })
+        await bridge.sendMessage({ platform: bridge.platform, chatId: userId, text: message })
       } catch {}
     }
   }
@@ -83,7 +83,7 @@ async function main() {
         : config.whatsapp.groupId
       if (groupId) {
         try {
-          await bridge.sendMessage({ chatId: groupId, text: message })
+          await bridge.sendMessage({ platform: bridge.platform, chatId: groupId, text: message })
         } catch {}
       }
     }
@@ -112,7 +112,7 @@ async function main() {
       if (response) {
         const bridge = bridges.find(b => b.platform === msg.platform)
         if (bridge) {
-          await bridge.sendMessage({ chatId: msg.chatId, text: response })
+          await bridge.sendMessage({ platform: msg.platform, chatId: msg.chatId, text: response })
         }
       }
     } catch (err) {

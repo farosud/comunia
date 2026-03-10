@@ -26,10 +26,12 @@ export class OpenAIProvider implements LLMProvider {
 
     const choice = response.choices[0]
     const text = choice.message.content || ''
-    const toolCalls = (choice.message.tool_calls || []).map(tc => ({
-      name: tc.function.name,
-      input: JSON.parse(tc.function.arguments),
-    }))
+    const toolCalls = (choice.message.tool_calls || [])
+      .filter(tc => tc.type === 'function')
+      .map(tc => ({
+        name: tc.function.name,
+        input: JSON.parse(tc.function.arguments),
+      }))
 
     return { text, toolCalls }
   }

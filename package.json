@@ -1,23 +1,55 @@
 {
   "name": "comunia",
   "version": "0.1.0",
+  "description": "Open-source AI community manager — events, profiling, learning. Deploy with docker compose up.",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
+  "bin": {
+    "comunia": "dist/bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "drizzle.config.ts",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "bin": {
-    "comunia": "./bin/cli.ts"
+  "keywords": [
+    "community",
+    "ai",
+    "telegram",
+    "whatsapp",
+    "events",
+    "agent",
+    "llm",
+    "claude",
+    "openai",
+    "community-management",
+    "chatbot"
+  ],
+  "author": "Emiliano Velazquez",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/farosud/comunia.git"
+  },
+  "homepage": "https://github.com/farosud/comunia",
+  "bugs": {
+    "url": "https://github.com/farosud/comunia/issues"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

@@ -33,10 +33,10 @@ const configSchema = z.object({
     language: z.string().default('en'),
     type: z.enum(['local', 'distributed', 'hybrid']).default('local'),
     location: z.string().optional(),
-    adminUserIds: z.string().transform(s => s ? s.split(',').map(id => id.trim()) : []).default(''),
+    adminUserIds: z.string().default('').transform(s => s ? s.split(',').map(id => id.trim()) : []),
   }),
   scheduler: z.object({
-    reminderHoursBefore: z.string().transform(s => s.split(',').map(Number)).default('48,2'),
+    reminderHoursBefore: z.string().default('48,2').transform(s => s.split(',').map(Number)),
     feedbackDelayHours: z.coerce.number().default(24),
     digestCron: z.string().default('0 10 * * 1'),
     reflectionCron: z.string().default('0 3 * * *'),
