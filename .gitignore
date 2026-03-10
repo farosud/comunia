@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+agent/soul.md
+agent/memory.md
+agent/agent.md
+data/
+*.db
+import/inbox/*
+!import/inbox/.gitkeep
+import/processed/*
+!import/processed/.gitkeep
