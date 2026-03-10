@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comunia Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+  <!-- Login screen -->
+  <div id="login-screen" class="login-screen hidden">
+    <div class="login-card">
+      <h1>Comunia</h1>
+      <p>Enter your dashboard secret to continue.</p>
+      <form id="login-form">
+        <input type="password" id="login-secret" placeholder="Dashboard secret" autocomplete="off" required>
+        <button type="submit">Enter</button>
+      </form>
+      <p id="login-error" class="error hidden">Invalid secret. Please try again.</p>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" class="app-layout hidden">
+    <nav class="sidebar">
+      <div class="sidebar-brand">
+        <h2>Comunia</h2>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#overview" class="nav-link active" data-section="overview">Overview</a></li>
+        <li><a href="#members" class="nav-link" data-section="members">Members</a></li>
+        <li><a href="#events" class="nav-link" data-section="events">Events</a></li>
+        <li><a href="#reasoning" class="nav-link" data-section="reasoning">Reasoning</a></li>
+        <li><a href="#agent" class="nav-link" data-section="agent">Agent</a></li>
+        <li><a href="#import" class="nav-link" data-section="import">Import</a></li>
+        <li><a href="#settings" class="nav-link" data-section="settings">Settings</a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <button id="logout-btn" class="btn-text">Log out</button>
+      </div>
+    </nav>
+    <main id="main-content" class="main-content">
+      <!-- Dynamic content loaded here -->
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
