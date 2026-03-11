@@ -109,23 +109,52 @@ export async function runInit() {
     options: [
       { value: 'claude', label: 'Claude (Anthropic) - recommended' },
       { value: 'openai', label: 'OpenAI (GPT-4o)' },
+      { value: 'openrouter', label: 'OpenRouter - access multiple models with one API key' },
     ],
   })
   if (p.isCancel(llmProvider)) return process.exit(0)
 
-  const apiKey = await p.text({
-    message: `${llmProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API key:`,
-    validate: (v) => v && v.length > 10 ? undefined : 'Key seems too short',
-  })
-  if (p.isCancel(apiKey)) return process.exit(0)
+  let apiKey = ''
+  let openrouterModel = ''
+
+  if (llmProvider === 'openrouter') {
+    const orKey = await p.text({
+      message: 'OpenRouter API key:',
+      validate: (v) => v && v.length > 10 ? undefined : 'Key seems too short',
+    })
+    if (p.isCancel(orKey)) return process.exit(0)
+    apiKey = orKey
+
+    const model = await p.text({
+      message: 'OpenRouter model (e.g. anthropic/claude-sonnet-4, openai/gpt-4o):',
+      defaultValue: 'anthropic/claude-sonnet-4',
+    })
+    if (p.isCancel(model)) return process.exit(0)
+    openrouterModel = model || 'anthropic/claude-sonnet-4'
+  } else {
+    const key = await p.text({
+      message: `${llmProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API key:`,
+      validate: (v) => v && v.length > 10 ? undefined : 'Key seems too short',
+    })
+    if (p.isCancel(key)) return process.exit(0)
+    apiKey = key
+  }
 
   // 5. Dashboard secret
   const dashboardSecret = `comunia-${Date.now()}-${Math.random().toString(36).slice(2)}`
 
   // 6. Write .env
+  let llmEnvLines = `LLM_PROVIDER=${llmProvider}\n`
+  if (llmProvider === 'claude') {
+    llmEnvLines += `ANTHROPIC_API_KEY=${apiKey}`
+  } else if (llmProvider === 'openai') {
+    llmEnvLines += `OPENAI_API_KEY=${apiKey}`
+  } else if (llmProvider === 'openrouter') {
+    llmEnvLines += `OPENROUTER_API_KEY=${apiKey}\nOPENROUTER_MODEL=${openrouterModel}`
+  }
+
   const envContent = `# === LLM ===
-LLM_PROVIDER=${llmProvider}
-${llmProvider === 'claude' ? `ANTHROPIC_API_KEY=${apiKey}` : `OPENAI_API_KEY=${apiKey}`}
+${llmEnvLines}
 
 # === Telegram ===
 TELEGRAM_ENABLED=${platform === 'telegram' || platform === 'both' ? 'true' : 'false'}
