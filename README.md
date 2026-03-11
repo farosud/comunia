@@ -18,13 +18,11 @@ Think of it as a tireless community organizer that never sleeps, never forgets a
 ## Quick Start
 
 ```bash
-git clone https://github.com/farosud/comunia
-cd comunia
 npx comunia init    # Interactive setup wizard — creates .env, agent files, detects groups
 docker compose up   # Or: npm run dev
 ```
 
-The setup wizard walks you through LLM provider selection, bot token configuration, community settings, and group detection. You will be up and running in under five minutes.
+No cloning needed — the setup wizard walks you through LLM provider selection, bot token configuration, community settings, and group detection. You will be up and running in under five minutes.
 
 ## Features
 
