@@ -19,12 +19,15 @@ export interface LLMConfig {
   provider: string
   anthropicApiKey?: string
   openaiApiKey?: string
+  openrouterApiKey?: string
+  openrouterModel?: string
   ollamaUrl?: string
 }
 
 // Static imports — ESM-safe, no require()
 import { ClaudeProvider } from './claude.js'
 import { OpenAIProvider } from './openai.js'
+import { OpenRouterProvider } from './openrouter.js'
 
 export function createProvider(config: LLMConfig): LLMProvider {
   switch (config.provider) {
@@ -35,6 +38,10 @@ export function createProvider(config: LLMConfig): LLMProvider {
     case 'openai': {
       if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY required for openai provider')
       return new OpenAIProvider(config.openaiApiKey)
+    }
+    case 'openrouter': {
+      if (!config.openrouterApiKey) throw new Error('OPENROUTER_API_KEY required for openrouter provider')
+      return new OpenRouterProvider(config.openrouterApiKey, config.openrouterModel)
     }
     default:
       throw new Error(`Unknown provider: ${config.provider}`)
