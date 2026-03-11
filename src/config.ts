@@ -12,7 +12,9 @@ const configSchema = z.object({
     anthropicApiKey: z.string().optional(),
     openaiApiKey: z.string().optional(),
     openrouterApiKey: z.string().optional(),
-    openrouterModel: z.string().default('anthropic/claude-sonnet-4').optional(),
+    openrouterModel: z.string().optional()
+      .transform(v => v || 'anthropic/claude-sonnet-4')
+      .refine(v => !v.startsWith('sk-or-v1-'), 'OPENROUTER_MODEL looks like an API key, not a model ID'),
     ollamaUrl: z.string().optional(),
     maxConcurrent: z.coerce.number().default(10),
     maxPerMinute: z.coerce.number().default(30),
@@ -45,10 +47,29 @@ const configSchema = z.object({
     venueResearchCron: z.string().default('0 9 * * 3'),
     eventIdeationCron: z.string().default('0 10 * * 1'),
     subgroupAnalysisCron: z.string().default('0 4 * * 0'),
+    memberSyncCron: z.string().default('*/15 * * * *'),
+    communityIdeaCron: z.string().default('*/15 * * * *'),
   }),
   dashboard: z.object({
+    host: z.string().default('127.0.0.1'),
     port: z.coerce.number().default(3000),
     secret: z.string().min(1, 'DASHBOARD_SECRET is required'),
+  }),
+  database: z.object({
+    path: z.string().default('./data/comunia.db'),
+  }),
+  publicPortal: z.object({
+    mode: z.enum(['self_hosted', 'cloud', 'both']).default('self_hosted'),
+    passcode: z.string().default('comunia-community'),
+    botUrl: z.string().default(''),
+  }),
+  cloud: z.object({
+    publishUrl: z.string().default('https://cloud.comunia.chat'),
+    publishSlug: z.string().default(''),
+    publishToken: z.string().default(''),
+    serverEnabled: boolString,
+    serverToken: z.string().default(''),
+    syncIntervalMs: z.coerce.number().default(15000),
   }),
 })
 
@@ -94,10 +115,29 @@ export function loadConfig(): Config {
       venueResearchCron: process.env.VENUE_RESEARCH_CRON,
       eventIdeationCron: process.env.EVENT_IDEATION_CRON,
       subgroupAnalysisCron: process.env.SUBGROUP_ANALYSIS_CRON,
+      memberSyncCron: process.env.MEMBER_SYNC_CRON,
+      communityIdeaCron: process.env.COMMUNITY_IDEA_CRON,
     },
     dashboard: {
-      port: process.env.DASHBOARD_PORT,
+      host: process.env.DASHBOARD_HOST,
+      port: process.env.DASHBOARD_PORT ?? process.env.PORT,
       secret: process.env.DASHBOARD_SECRET,
+    },
+    database: {
+      path: process.env.DATABASE_PATH,
+    },
+    publicPortal: {
+      mode: process.env.PUBLIC_PORTAL_MODE,
+      passcode: process.env.PUBLIC_DASHBOARD_PASSCODE,
+      botUrl: process.env.PUBLIC_BOT_URL,
+    },
+    cloud: {
+      publishUrl: process.env.COMUNIA_CLOUD_URL,
+      publishSlug: process.env.COMUNIA_CLOUD_SLUG,
+      publishToken: process.env.COMUNIA_CLOUD_TOKEN,
+      serverEnabled: process.env.COMUNIA_CLOUD_SERVER_ENABLED,
+      serverToken: process.env.COMUNIA_CLOUD_SERVER_TOKEN,
+      syncIntervalMs: process.env.COMUNIA_CLOUD_SYNC_INTERVAL_MS,
     },
   })
 }

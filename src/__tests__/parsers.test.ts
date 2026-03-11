@@ -46,6 +46,8 @@ describe('Telegram Parser', () => {
     expect(result.messages).toHaveLength(2) // Skips service message
     expect(result.members).toHaveLength(2)
     expect(result.format).toBe('telegram-export')
+    expect(result.members[0].platformId).toBe('user123')
+    expect(result.members[0].messageCount).toBe(1)
   })
 })
 

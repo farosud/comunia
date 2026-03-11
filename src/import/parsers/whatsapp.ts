@@ -17,27 +17,42 @@ export const whatsappParser: Parser = {
 
   parse(content: string, filename: string): ParseResult {
     const messages: ParsedMessage[] = []
-    const memberSet = new Set<string>()
+    const memberMap = new Map<string, ParsedMember>()
 
     for (const line of content.split('\n')) {
       const match = line.match(WA_LINE_REGEX)
       if (!match) continue
 
       const [, dateStr, sender, text] = match
-      memberSet.add(sender)
+      const timestamp = parseWhatsAppDate(dateStr)
+      const existingMember = memberMap.get(sender)
+      if (!existingMember) {
+        memberMap.set(sender, {
+          name: sender,
+          platform: 'whatsapp',
+          messageCount: 1,
+          firstMessageAt: timestamp,
+          lastMessageAt: timestamp,
+        })
+      } else {
+        existingMember.messageCount = (existingMember.messageCount || 0) + 1
+        if (!existingMember.firstMessageAt || timestamp < existingMember.firstMessageAt) {
+          existingMember.firstMessageAt = timestamp
+        }
+        if (!existingMember.lastMessageAt || timestamp > existingMember.lastMessageAt) {
+          existingMember.lastMessageAt = timestamp
+        }
+      }
 
       messages.push({
         sender,
         text,
-        timestamp: parseWhatsAppDate(dateStr),
+        timestamp,
         platform: 'whatsapp',
       })
     }
 
-    const members: ParsedMember[] = Array.from(memberSet).map(name => ({
-      name,
-      platform: 'whatsapp',
-    }))
+    const members: ParsedMember[] = Array.from(memberMap.values())
 
     return { messages, members, source: filename, format: 'whatsapp-export' }
   },

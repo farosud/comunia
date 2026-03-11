@@ -15,7 +15,12 @@ export const plaintextParser: Parser = {
         text: content,
         timestamp: new Date(),
       }],
-      members: [],
+      members: [{
+        name: 'unknown',
+        messageCount: 1,
+        firstMessageAt: new Date(),
+        lastMessageAt: new Date(),
+      }],
       source: filename,
       format: 'plaintext',
     }

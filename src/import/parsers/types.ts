@@ -9,6 +9,9 @@ export interface ParsedMember {
   name: string
   platformId?: string
   platform?: string
+  messageCount?: number
+  firstMessageAt?: Date
+  lastMessageAt?: Date
 }
 
 export interface ParseResult {

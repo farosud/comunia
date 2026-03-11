@@ -30,9 +30,18 @@ export class OpenAIProvider implements LLMProvider {
       .filter(tc => tc.type === 'function')
       .map(tc => ({
         name: tc.function.name,
-        input: JSON.parse(tc.function.arguments),
+        input: safeParseToolArguments(tc.function.arguments),
       }))
 
     return { text, toolCalls }
+  }
+}
+
+function safeParseToolArguments(args: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(args)
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
   }
 }

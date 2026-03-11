@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comunia | The AI community manager for Telegram and WhatsApp</title>
+    <meta
+      name="description"
+      content="Comunia turns Telegram and WhatsApp conversations into event proposals, member memory, and an admin dashboard that keeps the whole community moving."
+    />
+    <meta property="og:title" content="Comunia" />
+    <meta
+      property="og:description"
+      content="An AI community manager that chats with members, remembers context, and turns ideas into proposals on an admin dashboard."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://comunia.chat" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <span class="brand-mark"></span>
+        <span>Comunia</span>
+      </a>
+      <nav class="site-nav">
+        <a href="#product">Product</a>
+        <a href="#memory">Memory</a>
+        <a href="#marketplace">Marketplace</a>
+        <a href="#operators">Operators</a>
+        <a href="#install">Install</a>
+      </nav>
+      <a class="button button-dark" href="https://github.com/farosud/comunia" target="_blank" rel="noreferrer">
+        View GitHub
+      </a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">AI community manager for Telegram and WhatsApp</p>
+          <h1>Your community should keep moving even when the admin is offline.</h1>
+          <p class="hero-text">
+            Comunia talks to members, understands what they want, remembers what matters,
+            and turns loose chat ideas into visible proposals on a living dashboard.
+          </p>
+          <div class="hero-install-callout">
+            <p class="hero-install-label">Start here</p>
+            <div class="hero-install-command">
+              <code>npm install -g comunia</code>
+              <span>then</span>
+              <code>comunia init</code>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <a class="button button-accent" href="#install">Deploy it</a>
+            <a class="button button-ghost" href="#product">See the flow</a>
+          </div>
+          <ul class="hero-points">
+            <li>Turns “we should do a barbecue” into a proposal card</li>
+            <li>Keeps a generated memory file per member</li>
+            <li>Works as an operator layer between the chat and the admin</li>
+          </ul>
+        </div>
+
+        <div class="hero-stage">
+          <div class="stage-card stage-chat">
+            <div class="stage-bar">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="chat-line chat-user">Parravecini: Me pinta un asado el sábado 14 en el Cowork de crecimiento a las 18:00.</div>
+            <div class="chat-line chat-agent">Comunia: Ya detecté tipo, fecha, hora y lugar. Lo estoy guardando en Propuestas.</div>
+            <div class="chat-line chat-user">Parravecini: ¿Lo podés mandar al admin?</div>
+            <div class="chat-line chat-agent">Comunia: Sí. Ya quedó visible en el dashboard para seguir completándolo.</div>
+          </div>
+
+          <div class="stage-card stage-proposal">
+            <div class="mini-heading">Dashboard · Proposals</div>
+            <div class="proposal-card">
+              <div>
+                <p class="proposal-kicker">Proposed by Parravecini</p>
+                <h3>Asado en el Cowork de crecimiento</h3>
+              </div>
+              <dl>
+                <div><dt>Date</dt><dd>Sábado 14 · 18:00</dd></div>
+                <div><dt>Type</dt><dd>Asado</dd></div>
+                <div><dt>Status</dt><dd>Proposed</dd></div>
+              </dl>
+            </div>
+            <div class="pulse-note">Live from chat, not after-the-fact admin busywork.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="marquee">
+        <div class="marquee-track">
+          <span>Telegram</span>
+          <span>WhatsApp</span>
+          <span>Proposal tracking</span>
+          <span>Per-user memory.md</span>
+          <span>Admin dashboard</span>
+          <span>Event suggestions</span>
+          <span>Member onboarding</span>
+          <span>Telegram</span>
+          <span>WhatsApp</span>
+          <span>Proposal tracking</span>
+          <span>Per-user memory.md</span>
+        </div>
+      </section>
+
+      <section class="grid-section" id="product">
+        <div class="section-intro">
+          <p class="eyebrow">What makes it different</p>
+          <h2>It doesn’t just answer messages. It operates the social layer.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <p class="feature-index">01</p>
+            <h3>Conversational intake</h3>
+            <p>
+              Members speak naturally. Comunia extracts date, time, vibe, location, capacity,
+              and intent without forcing a form.
+            </p>
+          </article>
+          <article class="feature-card">
+            <p class="feature-index">02</p>
+            <h3>Proposals before drafts</h3>
+            <p>
+              Half-formed ideas show up in the dashboard early, so you can see what the community
+              wants to do before plans are polished.
+            </p>
+          </article>
+          <article class="feature-card">
+            <p class="feature-index">03</p>
+            <h3>Memory that compounds</h3>
+            <p>
+              Every member gets a living profile with structured preferences, goals, and recent
+              conversation context.
+            </p>
+          </article>
+          <article class="feature-card">
+            <p class="feature-index">04</p>
+            <h3>Operator dashboard</h3>
+            <p>
+              Admins get proposals, drafts, member context, reasoning, and event flow in one place
+              instead of hunting across chats.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="memory-section" id="memory">
+        <div class="memory-copy">
+          <p class="eyebrow">Per-member memory</p>
+          <h2>Each user gets their own generated <code>memory.md</code>.</h2>
+          <p>
+            Comunia keeps the database as the source of truth, then renders a readable profile file
+            for every member. That means the agent, the admin, and the debugging surface all look at the same person model.
+          </p>
+        </div>
+        <div class="memory-file">
+          <div class="memory-file-bar">
+            <span>agent/users/u1/memory.md</span>
+            <span>generated</span>
+          </div>
+          <pre># Parravecini - Memory
+
+## Snapshot
+- Preferred format: physical
+- In-person style: bbqs
+- Community goal: Conocer gente que quiera hablar de startups
+
+## Structured Memory
+### preferences
+- event_format: physical
+- physical_event_style: bbqs
+
+## Recent Conversations
+### telegram / dm
+User: Me pinta un asado el sábado
+Assistant: Ya quedó visible en Propuestas.</pre>
+        </div>
+      </section>
+
+      <section class="grid-section" id="marketplace">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">Community Marketplace</p>
+            <h2>Starter operating systems for different kinds of communities.</h2>
+          </div>
+          <p class="section-sidecopy">
+            Copy a full <code>agent.md</code> and <code>soul.md</code> pair, drop it into your own Comunia setup,
+            and then tune it for your geography, norms, and culture.
+          </p>
+        </div>
+        <div id="marketplace-grid" class="marketplace-grid"></div>
+      </section>
+
+      <section class="operators" id="operators">
+        <div class="section-intro tight">
+          <p class="eyebrow">For operators and founders</p>
+          <h2>Built for communities that need more than a chatbot.</h2>
+        </div>
+        <div class="operator-rows">
+          <article class="operator-card">
+            <h3>Founder circles</h3>
+            <p>Surface dinners, salons, and tactical meetups before they disappear into chat noise.</p>
+          </article>
+          <article class="operator-card">
+            <h3>Local communities</h3>
+            <p>Track neighborhoods, timing preferences, and physical-event style so plans feel obvious, not random.</p>
+          </article>
+          <article class="operator-card">
+            <h3>Curators</h3>
+            <p>See emerging member intent on the dashboard instead of waiting for someone to manually summarize the thread.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="install" id="install">
+        <div class="install-copy">
+          <p class="eyebrow">Open source</p>
+          <h2>Deploy Comunia and make the chat itself operational.</h2>
+          <p>
+            The product is open source. The landing page lives separately so you can ship it on
+            Vercel while keeping the bot, dashboard, and scheduler in the core app.
+          </p>
+        </div>
+        <div class="install-panel">
+          <div class="terminal-head">
+            <span></span><span></span><span></span>
+          </div>
+          <pre><code>npm install -g comunia
+comunia init
+
+# connect Telegram or WhatsApp
+# choose your LLM
+# open the admin dashboard
+</code></pre>
+          <div class="install-actions">
+            <a class="button button-dark" href="https://github.com/farosud/comunia" target="_blank" rel="noreferrer">
+              Open repository
+            </a>
+            <a class="button button-ghost" href="https://www.npmjs.com/package/comunia" target="_blank" rel="noreferrer">
+              View package
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <p class="footer-brand">Comunia</p>
+        <p>The AI community manager for intent, memory, and real-world plans.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/farosud/comunia" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://www.npmjs.com/package/comunia" target="_blank" rel="noreferrer">npm</a>
+        <a href="mailto:hello@comunia.chat">hello@comunia.chat</a>
+      </div>
+    </footer>
+    <script src="./marketplace-data.js"></script>
+    <script src="./landing.js"></script>
+  </body>
+</html>

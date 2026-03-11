@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comunia Community</title>
+  <link rel="stylesheet" href="community.css">
+</head>
+<body>
+  <div id="community-login" class="community-login">
+    <div class="community-login-card">
+      <p class="eyebrow">Community Portal</p>
+      <h1>Enter the community passcode</h1>
+      <p>Use the shared code from the admin to access events, members, and the live stream of AI ideas.</p>
+      <form id="community-login-form">
+        <input id="community-passcode" type="password" placeholder="Community passcode" required>
+        <button type="submit">Enter</button>
+      </form>
+      <p id="community-login-error" class="error hidden">Wrong passcode. Try again.</p>
+    </div>
+  </div>
+
+  <div id="community-app" class="community-app hidden">
+    <header class="community-hero">
+      <div>
+        <p class="eyebrow">Public Community Dashboard</p>
+        <h1 id="community-name">Comunia</h1>
+        <p id="community-subtitle" class="subtitle"></p>
+      </div>
+      <div class="hero-actions">
+        <a id="bot-link" class="hero-button hidden" href="#" target="_blank" rel="noreferrer">Talk to the bot</a>
+        <button id="community-logout" class="secondary-button">Lock portal</button>
+      </div>
+    </header>
+
+    <main class="community-layout">
+      <section class="community-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Upcoming</p>
+            <h2>Events</h2>
+          </div>
+        </div>
+        <div id="public-events" class="stack"></div>
+      </section>
+
+      <section class="community-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">People</p>
+            <h2>Members</h2>
+          </div>
+        </div>
+        <div id="public-members" class="member-grid"></div>
+      </section>
+
+      <section class="community-panel full-span">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">AI Stream</p>
+            <h2>Potential ideas for the community</h2>
+          </div>
+          <p class="panel-note">Vote up or down. For now, votes only shape the visible signal.</p>
+        </div>
+        <div id="public-ideas" class="idea-stream"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="community.js"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import { AgentMemory } from '../memory/agent-memory.js'
 import { ReasoningStream } from '../reasoning.js'
 import { HealthMonitor } from '../health.js'
 import { createDb } from '../db/index.js'
-import { users } from '../db/schema.js'
+import { users, events, importLog } from '../db/schema.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -33,6 +33,10 @@ describe('Dashboard API', () => {
       agentMemory: new AgentMemory(tmpDir),
       reasoning: new ReasoningStream(),
       health: new HealthMonitor(),
+      config: {
+        community: { name: 'Comunia', type: 'local', location: 'Buenos Aires' },
+        publicPortal: { passcode: 'community-123', botUrl: 'https://t.me/comunia_bot' },
+      } as any,
     })
   })
 
@@ -52,12 +56,59 @@ describe('Dashboard API', () => {
     expect(data.members).toBe(1)
   })
 
+  it('GET /community/public-settings returns public portal settings', async () => {
+    const res = await api.request('/community/public-settings')
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.passcode).toBe('community-123')
+    expect(data.botUrl).toBe('https://t.me/comunia_bot')
+  })
+
+  it('PUT /community/public-settings updates public portal settings', async () => {
+    const res = await api.request('/community/public-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode: 'new-code', botUrl: 'https://t.me/new_bot' }),
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.passcode).toBe('new-code')
+    expect(data.botUrl).toBe('https://t.me/new_bot')
+  })
+
+  it('POST /cloud/publish-credentials provisions a slug-specific publish token', async () => {
+    const res = await api.request('/cloud/publish-credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'founders-ba', communityName: 'Founders BA' }),
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.slug).toBe('founders-ba')
+    expect(data.token.startsWith('cp_')).toBe(true)
+
+    const list = await api.request('/cloud/publish-credentials')
+    const listData = await list.json()
+    expect(listData).toHaveLength(1)
+    expect(listData[0].slug).toBe('founders-ba')
+    expect(listData[0].tokenPreview).toContain('...')
+  })
+
   it('GET /members returns members with profiles', async () => {
     const res = await api.request('/members')
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data).toHaveLength(1)
     expect(data[0].name).toBe('Emi')
+    expect(data[0].memoryFilePath).toContain('/users/u1/memory.md')
+  })
+
+  it('GET /members/:id/memory returns generated markdown memory for that member', async () => {
+    const res = await api.request('/members/u1/memory')
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.path).toContain('/users/u1/memory.md')
+    expect(data.content).toContain('# Emi - Memory')
   })
 
   it('GET /events returns all events', async () => {
@@ -72,6 +123,25 @@ describe('Dashboard API', () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(Array.isArray(data)).toBe(true)
+  })
+
+  it('GET /events/proposals returns proposed events', async () => {
+    db.insert(events).values({
+      id: 'p1',
+      title: 'Asado',
+      type: 'asado',
+      status: 'proposed',
+      proposedBy: 'u1',
+      date: 'TBD',
+      createdAt: new Date().toISOString(),
+    }).run()
+
+    const res = await api.request('/events/proposals')
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(Array.isArray(data)).toBe(true)
+    expect(data).toHaveLength(1)
+    expect(data[0].status).toBe('proposed')
   })
 
   it('POST /events/:id/approve approves event', async () => {
@@ -127,6 +197,19 @@ describe('Dashboard API', () => {
     expect(data.content).toContain('Test memory')
   })
 
+  it('PUT /agent/memory updates memory.md', async () => {
+    const res = await api.request('/agent/memory', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '# Memory\nUpdated memory.' }),
+    })
+    expect(res.status).toBe(200)
+
+    const check = await api.request('/agent/memory')
+    const data = await check.json()
+    expect(data.content).toBe('# Memory\nUpdated memory.')
+  })
+
   it('GET /agent/agent returns agent.md content', async () => {
     const res = await api.request('/agent/agent')
     expect(res.status).toBe(200)
@@ -134,11 +217,40 @@ describe('Dashboard API', () => {
     expect(data.content).toContain('Test agent')
   })
 
+  it('PUT /agent/agent updates agent.md', async () => {
+    const res = await api.request('/agent/agent', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '# Agent\nUpdated agent.' }),
+    })
+    expect(res.status).toBe(200)
+
+    const check = await api.request('/agent/agent')
+    const data = await check.json()
+    expect(data.content).toBe('# Agent\nUpdated agent.')
+  })
+
   it('GET /import/history returns import logs', async () => {
+    db.insert(importLog).values({
+      id: 'import-1',
+      sourceFile: 'result.json',
+      type: 'telegram-export',
+      status: 'processing',
+      error: null,
+      messagesProcessed: 10,
+      membersProcessed: 3,
+      entriesExtracted: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: null,
+      importedAt: new Date().toISOString(),
+    }).run()
+
     const res = await api.request('/import/history')
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(Array.isArray(data)).toBe(true)
+    expect(data[0].status).toBe('processing')
   })
 
   it('POST /reasoning/ask returns 503 when agent not initialized', async () => {

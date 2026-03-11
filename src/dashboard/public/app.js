@@ -179,6 +179,7 @@
         html += '<div id="member-list">' + renderMemberList(members) + '</div>';
       }
       el.innerHTML = html;
+      setupMemberMemoryViewer(el);
 
       var search = $('#member-search');
       if (search) {
@@ -208,27 +209,72 @@
           '<h3>' + esc(m.name) + (m.preferredName ? ' (' + esc(m.preferredName) + ')' : '') +
             ' <span class="member-status ' + statusClass + '">' + esc(m.status) + '</span></h3>' +
           '<div class="profile-summary">' + esc(m.profile || 'No profile data yet.') + '</div>' +
+          '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">' +
+            '<button class="secondary-btn member-memory-btn" data-user-id="' + esc(m.id) + '">View memory.md</button>' +
+            (m.memoryFilePath ? '<span class="meta">' + esc(m.memoryFilePath) + '</span>' : '') +
+          '</div>' +
+          '<div class="member-memory-panel hidden" data-user-memory="' + esc(m.id) + '" style="margin-top:0.75rem">' +
+            '<div class="notes">Loading generated memory file...</div>' +
+          '</div>' +
         '</div>' +
       '</div>';
     }).join('');
   }
 
+  function setupMemberMemoryViewer(el) {
+    var list = $('#member-list', el);
+    if (!list) return;
+
+    list.addEventListener('click', function (event) {
+      var button = event.target.closest('.member-memory-btn');
+      if (!button) return;
+
+      var userId = button.getAttribute('data-user-id');
+      var panel = $('[data-user-memory="' + userId + '"]', list);
+      if (!panel) return;
+
+      if (!panel.classList.contains('hidden') && panel.getAttribute('data-loaded') === 'true') {
+        panel.classList.add('hidden');
+        button.textContent = 'View memory.md';
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      button.textContent = 'Hide memory.md';
+
+      if (panel.getAttribute('data-loaded') === 'true') return;
+
+      panel.innerHTML = '<div class="notes">Loading generated memory file...</div>';
+      apiJSON('/members/' + encodeURIComponent(userId) + '/memory').then(function (data) {
+        panel.setAttribute('data-loaded', 'true');
+        panel.innerHTML =
+          '<div class="notes">Generated file: ' + esc(data.path || '') + '</div>' +
+          '<pre style="margin-top:0.5rem;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:12px;overflow:auto">' + esc(data.content || '') + '</pre>';
+      }).catch(function () {
+        panel.innerHTML = '<div class="empty-state"><p>Failed to load member memory.</p></div>';
+      });
+    });
+  }
+
   // ── Events ──
   function loadEvents(el) {
-    Promise.all([apiJSON('/events/drafts'), apiJSON('/events')]).then(function (results) {
-      var drafts = results[0];
-      var allEvents = results[1];
+    Promise.all([apiJSON('/events/proposals'), apiJSON('/events/drafts'), apiJSON('/events')]).then(function (results) {
+      var proposals = results[0];
+      var drafts = results[1];
+      var allEvents = results[2];
       var upcoming = allEvents.filter(function (e) { return e.status === 'approved' || e.status === 'confirmed'; });
       var past = allEvents.filter(function (e) { return e.status === 'completed'; });
 
       el.innerHTML =
         '<h1 class="section-title">Events</h1>' +
         '<div class="tabs">' +
-          '<button class="tab-btn active" data-tab="drafts">Drafts (' + drafts.length + ')</button>' +
+          '<button class="tab-btn active" data-tab="proposals">Proposals (' + proposals.length + ')</button>' +
+          '<button class="tab-btn" data-tab="drafts">Drafts (' + drafts.length + ')</button>' +
           '<button class="tab-btn" data-tab="upcoming">Upcoming (' + upcoming.length + ')</button>' +
           '<button class="tab-btn" data-tab="past">Past (' + past.length + ')</button>' +
         '</div>' +
-        '<div id="tab-drafts" class="tab-pane active">' + renderDrafts(drafts) + '</div>' +
+        '<div id="tab-proposals" class="tab-pane active">' + renderProposals(proposals) + '</div>' +
+        '<div id="tab-drafts" class="tab-pane">' + renderDrafts(drafts) + '</div>' +
         '<div id="tab-upcoming" class="tab-pane">' + renderEventList(upcoming, 'No upcoming events.') + '</div>' +
         '<div id="tab-past" class="tab-pane">' + renderEventList(past, 'No past events.') + '</div>';
 
@@ -237,6 +283,23 @@
     }).catch(function () {
       el.innerHTML = '<div class="empty-state"><p>Failed to load events.</p></div>';
     });
+  }
+
+  function renderProposals(proposals) {
+    if (proposals.length === 0) return '<div class="empty-state"><p>No community ideas being explored right now.</p></div>';
+    return proposals.map(function (p) {
+      return '<div class="card draft-card" data-id="' + esc(p.id) + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+          '<div><h3>' + esc(p.title) + '</h3>' +
+            '<div class="meta">proposed &middot; ' + esc(p.type) + ' &middot; ' + esc(p.date || 'TBD') + (p.location ? ' &middot; ' + esc(p.location) : '') + '</div>' +
+          '</div>' +
+          '<div class="score">?</div>' +
+        '</div>' +
+        (p.description ? '<p style="margin-top:0.5rem;font-size:0.9rem">' + esc(p.description) + '</p>' : '<p style="margin-top:0.5rem;font-size:0.9rem">Still collecting details from the community.</p>') +
+        (p.maxCapacity ? '<div class="notes">Capacidad conversada: ' + esc(String(p.maxCapacity)) + '</div>' : '') +
+        (p.agentNotes ? '<div class="notes">' + esc(p.agentNotes) + '</div>' : '') +
+      '</div>';
+    }).join('');
   }
 
   function renderDrafts(drafts) {
@@ -431,7 +494,7 @@
 
       setupAgentSave('soul', '/agent/soul');
       setupAgentSave('memory', '/agent/memory');
-      // agent.md is read-only from API (no PUT endpoint), so we still show it
+      setupAgentSave('agent', '/agent/agent');
     }).catch(function () {
       el.innerHTML = '<div class="empty-state"><p>Failed to load agent files.</p></div>';
     });
@@ -476,6 +539,8 @@
   }
 
   // ── Import ──
+  var importHistoryPollTimer = null;
+
   function loadImport(el) {
     el.innerHTML =
       '<h1 class="section-title">Import</h1>' +
@@ -483,6 +548,7 @@
         '<p>Drag & drop a file here, or click to select</p>' +
         '<input type="file" id="file-input">' +
       '</div>' +
+      '<p class="notes" style="margin-top:0.75rem">Supported files: Telegram export <code>.json</code>, WhatsApp export <code>.txt</code>, <code>.csv</code>, <code>.txt</code>, and <code>.md</code>.</p>' +
       '<div id="upload-status"></div>' +
       '<h2 style="font-size:1.1rem;margin:1.5rem 0 0.75rem">Import History</h2>' +
       '<div id="import-history"><span class="spinner"></span></div>';
@@ -525,8 +591,8 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.success) {
-          status.innerHTML = '<p style="color:var(--success)">Uploaded ' + esc(data.filename) + ' successfully.</p>';
-          loadImportHistory();
+          status.innerHTML = '<p style="color:var(--success)">Uploaded ' + esc(data.filename) + '. Analysis queued.</p>';
+          loadImportHistory(true);
         } else {
           status.innerHTML = '<p style="color:var(--danger)">Upload failed: ' + esc(data.error || 'Unknown error') + '</p>';
         }
@@ -536,7 +602,7 @@
       });
   }
 
-  function loadImportHistory() {
+  function loadImportHistory(shouldPoll) {
     apiJSON('/import/history').then(function (logs) {
       var container = $('#import-history');
       if (!logs.length) {
@@ -544,20 +610,47 @@
         return;
       }
       var html = '<table class="import-table"><thead><tr>' +
-        '<th>File</th><th>Type</th><th>Messages</th><th>Members</th><th>Entries</th><th>Date</th>' +
+        '<th>File</th><th>Status</th><th>Type</th><th>Messages</th><th>Members</th><th>Entries</th><th>Updated</th><th>Details</th>' +
         '</tr></thead><tbody>';
       logs.forEach(function (l) {
+        var statusClass = l.status === 'completed' ? 'color:var(--success)' :
+          l.status === 'failed' ? 'color:var(--danger)' : 'color:var(--warning)';
+        var details = l.error || '';
+        if (!details) {
+          if (l.status === 'processing' && (l.membersProcessed || 0) > 0) {
+            details = 'Members imported. Deep profile analysis still running...';
+          } else if (l.status === 'processing') {
+            details = 'Analyzing file...';
+          } else if (l.status === 'uploaded') {
+            details = 'Waiting for importer...';
+          }
+        }
         html += '<tr>' +
           '<td>' + esc(l.sourceFile) + '</td>' +
+          '<td><strong style="' + statusClass + '">' + esc(l.status || 'completed') + '</strong></td>' +
           '<td>' + esc(l.type) + '</td>' +
           '<td>' + (l.messagesProcessed || 0) + '</td>' +
           '<td>' + (l.membersProcessed || 0) + '</td>' +
           '<td>' + (l.entriesExtracted || 0) + '</td>' +
-          '<td>' + esc(l.importedAt || '') + '</td>' +
+          '<td>' + esc(l.updatedAt || l.importedAt || '') + '</td>' +
+          '<td>' + esc(details) + '</td>' +
         '</tr>';
       });
       html += '</tbody></table>';
       container.innerHTML = html;
+
+      var hasPending = logs.some(function (l) {
+        return l.status === 'uploaded' || l.status === 'processing';
+      });
+      if (importHistoryPollTimer) {
+        clearTimeout(importHistoryPollTimer);
+        importHistoryPollTimer = null;
+      }
+      if (shouldPoll || hasPending) {
+        importHistoryPollTimer = setTimeout(function () {
+          loadImportHistory(true);
+        }, 3000);
+      }
     }).catch(function () {
       $('#import-history').innerHTML = '<div class="empty-state"><p>Failed to load history.</p></div>';
     });
@@ -567,8 +660,162 @@
   function loadSettings(el) {
     el.innerHTML =
       '<h1 class="section-title">Settings</h1>' +
+      '<div class="card" style="margin-bottom:1rem">' +
+        '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Public Community Portal</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:1rem">Share this portal with the community. Members use the passcode below to access events, members, and the AI idea stream.</p>' +
+        '<div style="display:grid;gap:0.75rem">' +
+          '<label>Public URL<br><input id="public-url" disabled style="width:100%;margin-top:0.35rem" value="' + esc(window.location.origin + '/community') + '"></label>' +
+          '<label>Passcode<br><input id="public-passcode" type="text" style="width:100%;margin-top:0.35rem" placeholder="Community passcode"></label>' +
+          '<label>Bot URL<br><input id="public-bot-url" type="text" style="width:100%;margin-top:0.35rem" placeholder="https://t.me/your_bot"></label>' +
+          '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" id="save-public-settings">Save public portal settings</button>' +
+            '<span id="public-settings-msg" class="save-msg"></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card" style="margin-bottom:1rem">' +
+        '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Group Chat Behavior</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:1rem">By default, Comunia should stay quiet in community groups and only respond when an admin explicitly calls on it. Conversations should happen 1:1 unless you change that here.</p>' +
+        '<div style="display:grid;gap:0.75rem">' +
+          '<label>Group response mode<br>' +
+            '<select id="group-response-mode" style="width:100%;margin-top:0.35rem">' +
+              '<option value="admin_only">Admin only</option>' +
+              '<option value="open">Open</option>' +
+            '</select>' +
+          '</label>' +
+          '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" id="save-group-settings">Save group behavior</button>' +
+            '<span id="group-settings-msg" class="save-msg"></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card" id="cloud-credentials-card" style="margin-bottom:1rem;display:none">' +
+        '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Comunia Cloud Publish Tokens</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:1rem">Create one token per community slug on the central cloud server. Give each community only its own token.</p>' +
+        '<div style="display:grid;gap:0.75rem;margin-bottom:1rem">' +
+          '<label>Community slug<br><input id="cloud-credential-slug" type="text" style="width:100%;margin-top:0.35rem" placeholder="founders-ba"></label>' +
+          '<label>Community name (optional)<br><input id="cloud-credential-name" type="text" style="width:100%;margin-top:0.35rem" placeholder="Founders BA"></label>' +
+          '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" id="issue-cloud-credential">Create token</button>' +
+            '<span id="cloud-credential-msg" class="save-msg"></span>' +
+          '</div>' +
+          '<div id="cloud-issued-token" class="notes hidden"></div>' +
+        '</div>' +
+        '<div id="cloud-credentials-list"><span class="spinner"></span></div>' +
+      '</div>' +
       '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Health Status</h2>' +
       '<div id="health-grid" class="health-grid"><span class="spinner"></span></div>';
+
+    apiJSON('/community/public-settings').then(function (settings) {
+      $('#public-passcode').value = settings.passcode || '';
+      $('#public-bot-url').value = settings.botUrl || '';
+    }).catch(function () {
+      $('#public-settings-msg').textContent = 'Failed to load public portal settings';
+    });
+
+    apiJSON('/community/interaction-settings').then(function (settings) {
+      $('#group-response-mode').value = settings.responseMode || 'admin_only';
+    }).catch(function () {
+      $('#group-settings-msg').textContent = 'Failed to load group settings';
+    });
+
+    var saveBtn = $('#save-public-settings');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        apiFetch('/community/public-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            passcode: $('#public-passcode').value.trim(),
+            botUrl: $('#public-bot-url').value.trim(),
+          }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            $('#public-passcode').value = data.passcode || '';
+            $('#public-bot-url').value = data.botUrl || '';
+            $('#public-settings-msg').textContent = 'Saved';
+            setTimeout(function () { $('#public-settings-msg').textContent = ''; }, 2000);
+          })
+          .catch(function () {
+            $('#public-settings-msg').textContent = 'Save failed';
+          })
+          .finally(function () {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save public portal settings';
+          });
+      });
+    }
+
+    var groupSaveBtn = $('#save-group-settings');
+    if (groupSaveBtn) {
+      groupSaveBtn.addEventListener('click', function () {
+        groupSaveBtn.disabled = true;
+        groupSaveBtn.textContent = 'Saving...';
+        apiFetch('/community/interaction-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            responseMode: $('#group-response-mode').value,
+          }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            $('#group-response-mode').value = data.responseMode || 'admin_only';
+            $('#group-settings-msg').textContent = 'Saved';
+            setTimeout(function () { $('#group-settings-msg').textContent = ''; }, 2000);
+          })
+          .catch(function () {
+            $('#group-settings-msg').textContent = 'Save failed';
+          })
+          .finally(function () {
+            groupSaveBtn.disabled = false;
+            groupSaveBtn.textContent = 'Save group behavior';
+          });
+      });
+    }
+
+    apiJSON('/cloud/status').then(function (status) {
+      if (!status.serverEnabled) return;
+      $('#cloud-credentials-card').style.display = '';
+      loadCloudCredentials();
+
+      var issueBtn = $('#issue-cloud-credential');
+      issueBtn.addEventListener('click', function () {
+        var slug = ($('#cloud-credential-slug').value || '').trim();
+        var communityName = ($('#cloud-credential-name').value || '').trim();
+        if (!slug) {
+          $('#cloud-credential-msg').textContent = 'Slug is required';
+          return;
+        }
+
+        issueBtn.disabled = true;
+        issueBtn.textContent = 'Creating...';
+        apiFetch('/cloud/publish-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: slug, communityName: communityName }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            $('#cloud-credential-msg').textContent = 'Token created';
+            $('#cloud-issued-token').classList.remove('hidden');
+            $('#cloud-issued-token').innerHTML =
+              'Share this once with the community and store it in their <code>COMUNIA_CLOUD_TOKEN</code>:<br><pre style="margin-top:0.5rem;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:12px;overflow:auto">' + esc(data.token || '') + '</pre>';
+            loadCloudCredentials();
+          })
+          .catch(function () {
+            $('#cloud-credential-msg').textContent = 'Create failed';
+          })
+          .finally(function () {
+            issueBtn.disabled = false;
+            issueBtn.textContent = 'Create token';
+            setTimeout(function () { $('#cloud-credential-msg').textContent = ''; }, 2500);
+          });
+      });
+    }).catch(function () {});
 
     apiJSON('/health').then(function (data) {
       var container = $('#health-grid');
@@ -587,6 +834,30 @@
       }).join('');
     }).catch(function () {
       $('#health-grid').innerHTML = '<div class="empty-state"><p>Failed to load health status.</p></div>';
+    });
+  }
+
+  function loadCloudCredentials() {
+    apiJSON('/cloud/publish-credentials').then(function (rows) {
+      var container = $('#cloud-credentials-list');
+      if (!rows.length) {
+        container.innerHTML = '<div class="empty-state"><p>No cloud publish tokens provisioned yet.</p></div>';
+        return;
+      }
+
+      container.innerHTML =
+        '<table class="data-table"><thead><tr><th>Slug</th><th>Community</th><th>Token</th><th>Updated</th></tr></thead><tbody>' +
+        rows.map(function (row) {
+          return '<tr>' +
+            '<td><code>' + esc(row.slug || '') + '</code></td>' +
+            '<td>' + esc(row.communityName || '') + '</td>' +
+            '<td><code>' + esc(row.tokenPreview || '') + '</code></td>' +
+            '<td>' + esc(row.updatedAt || '') + '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody></table>';
+    }).catch(function () {
+      $('#cloud-credentials-list').innerHTML = '<div class="empty-state"><p>Failed to load cloud publish tokens.</p></div>';
     });
   }
 

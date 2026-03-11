@@ -4,15 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Comunia Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
+  <div class="page-noise" aria-hidden="true"></div>
   <!-- Login screen -->
   <div id="login-screen" class="login-screen hidden">
     <div class="login-card">
+      <div class="login-kicker">community command center</div>
       <h1>Comunia</h1>
-      <p>Enter your dashboard secret to continue.</p>
+      <p>Enter your dashboard secret to step into the operator view.</p>
       <form id="login-form">
         <input type="password" id="login-secret" placeholder="Dashboard secret" autocomplete="off" required>
         <button type="submit">Enter</button>
@@ -25,7 +30,9 @@
   <div id="app" class="app-layout hidden">
     <nav class="sidebar">
       <div class="sidebar-brand">
+        <div class="sidebar-kicker">AI operator</div>
         <h2>Comunia</h2>
+        <p>Community pulse, member memory, event flow.</p>
       </div>
       <ul class="nav-links">
         <li><a href="#overview" class="nav-link active" data-section="overview">Overview</a></li>
@@ -37,6 +44,7 @@
         <li><a href="#settings" class="nav-link" data-section="settings">Settings</a></li>
       </ul>
       <div class="sidebar-footer">
+        <div class="sidebar-footnote">Keep group chat quiet. Build in 1:1.</div>
         <button id="logout-btn" class="btn-text">Log out</button>
       </div>
     </nav>

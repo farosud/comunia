@@ -30,15 +30,32 @@ export const telegramParser: Parser = {
 
       const sender = msg.from || 'Unknown'
       const senderId = msg.from_id ? String(msg.from_id) : undefined
+      const timestamp = new Date(msg.date || msg.date_unixtime * 1000)
 
-      if (!memberSet.has(sender)) {
-        memberSet.set(sender, { name: sender, platformId: senderId, platform: 'telegram' })
+      const existingMember = memberSet.get(sender)
+      if (!existingMember) {
+        memberSet.set(sender, {
+          name: sender,
+          platformId: senderId,
+          platform: 'telegram',
+          messageCount: 1,
+          firstMessageAt: timestamp,
+          lastMessageAt: timestamp,
+        })
+      } else {
+        existingMember.messageCount = (existingMember.messageCount || 0) + 1
+        if (!existingMember.firstMessageAt || timestamp < existingMember.firstMessageAt) {
+          existingMember.firstMessageAt = timestamp
+        }
+        if (!existingMember.lastMessageAt || timestamp > existingMember.lastMessageAt) {
+          existingMember.lastMessageAt = timestamp
+        }
       }
 
       messages.push({
         sender,
         text,
-        timestamp: new Date(msg.date || msg.date_unixtime * 1000),
+        timestamp,
         platform: 'telegram',
       })
     }

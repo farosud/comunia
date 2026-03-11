@@ -17,10 +17,17 @@ import { ImportWatcher } from './import/watcher.js'
 import { createDashboard } from './dashboard/server.js'
 import { SmartTargeting } from './events/targeting.js'
 import { resolveFromModule } from './runtime-paths.js'
+import { TelegramMemberSync } from './members/telegram-sync.js'
+import { PublicPortal } from './community/public-portal.js'
+import { CloudSyncClient } from './community/cloud-sync.js'
+import { GroupPolicy } from './community/group-policy.js'
 import PQueue from 'p-queue'
 import path from 'path'
 import fs from 'fs'
+import { fileURLToPath } from 'url'
 import type { Bridge, InboundMessage } from './bridges/types.js'
+import { users } from './db/schema.js'
+import { eq, or } from 'drizzle-orm'
 
 async function runWithRestart(name: string, fn: () => Promise<void>, health: HealthMonitor) {
   while (true) {
@@ -35,9 +42,9 @@ async function runWithRestart(name: string, fn: () => Promise<void>, health: Hea
   }
 }
 
-async function main() {
+export async function startApp() {
   const config = loadConfig()
-  const db = createDb()
+  const db = createDb(config.database.path)
   const health = new HealthMonitor()
   const reasoning = new ReasoningStream()
   const templatesDir = resolveFromModule(import.meta.url, '../templates')
@@ -59,21 +66,64 @@ async function main() {
   }
 
   // Core services
-  const llm = createProvider(config.llm)
   const agentMemory = new AgentMemory(agentDir)
   const userMemory = new UserMemory(db)
   const eventManager = new EventManager(db)
+  const publicPortal = new PublicPortal(db, config)
+  const groupPolicy = new GroupPolicy(db)
+  const cloudOnlyMode = config.cloud.serverEnabled
+    && !config.telegram.enabled
+    && !config.whatsapp.enabled
+    && !hasLlmCredentials(config.llm)
+
+  if (cloudOnlyMode) {
+    console.log('Mode: cloud server only')
+
+    const dashboard = createDashboard({
+      port: config.dashboard.port,
+      secret: config.dashboard.secret,
+      db,
+      eventManager,
+      userMemory,
+      agentMemory,
+      reasoning,
+      health,
+      config,
+    })
+    dashboard.start()
+    console.log(`  Dashboard: http://${config.dashboard.host}:${config.dashboard.port}`)
+    return
+  }
+
+  const llm = createProvider(config.llm)
 
   // Rate-limited LLM queue
   const llmQueue = new PQueue({ concurrency: config.llm.maxConcurrent })
 
   // Messaging functions
   const bridges: Bridge[] = []
+  let telegramMemberSync: TelegramMemberSync | undefined
 
   const sendDm = async (userId: string, message: string) => {
+    const user = db.select().from(users)
+      .where(or(eq(users.id, userId), eq(users.telegramId, userId), eq(users.whatsappId, userId)))
+      .get()
+
+    const directTargets = user
+      ? [
+        user.telegramId ? { platform: 'telegram' as const, chatId: user.telegramId.replace(/^tg_/, '') } : null,
+        user.whatsappId ? { platform: 'whatsapp' as const, chatId: user.whatsappId.replace(/^wa_/, '') } : null,
+      ].filter(Boolean)
+      : [
+        userId.startsWith('tg_') ? { platform: 'telegram' as const, chatId: userId.replace(/^tg_/, '') } : null,
+        userId.startsWith('wa_') ? { platform: 'whatsapp' as const, chatId: userId.replace(/^wa_/, '') } : null,
+      ].filter(Boolean)
+
     for (const bridge of bridges) {
+      const target = directTargets.find((candidate) => candidate?.platform === bridge.platform)
+      if (!target) continue
       try {
-        await bridge.sendMessage({ platform: bridge.platform, chatId: userId, text: message })
+        await bridge.sendMessage({ platform: bridge.platform, chatId: target.chatId, text: message })
       } catch {}
     }
   }
@@ -84,7 +134,7 @@ async function main() {
         ? config.telegram.groupChatId
         : config.whatsapp.groupId
       if (groupId) {
-        try {
+      try {
           await bridge.sendMessage({ platform: bridge.platform, chatId: groupId, text: message })
         } catch {}
       }
@@ -103,22 +153,42 @@ async function main() {
   const router = new MessageRouter(
     db,
     config.community.adminUserIds,
-    (msg) => llmQueue.add(() => agentCore.handleMessage(msg)) as Promise<string>,
+    (msg, onProgress) => llmQueue.add(() => agentCore.handleMessage(msg, onProgress)) as Promise<string>,
     (cmd, msg) => llmQueue.add(() => agentCore.handleAdminQuestion(cmd)) as Promise<string>,
   )
 
   // Message handler for bridges
   const handleMessage = async (msg: InboundMessage) => {
+    const progressSession = createProgressSession(msg, bridges)
+
     try {
-      const response = await router.route(msg)
+      const response = await router.route(msg, progressSession?.update.bind(progressSession))
       if (response) {
-        const bridge = bridges.find(b => b.platform === msg.platform)
-        if (bridge) {
-          await bridge.sendMessage({ platform: msg.platform, chatId: msg.chatId, text: response })
+        if (progressSession) {
+          await progressSession.finish(response)
+        } else {
+          const bridge = bridges.find(b => b.platform === msg.platform)
+          if (bridge) {
+            await bridge.sendMessage({ platform: msg.platform, chatId: msg.chatId, text: response })
+          }
         }
       }
     } catch (err) {
       console.error(`[${msg.platform}] message handling error:`, err)
+      if (progressSession) {
+        await progressSession.fail('I hit an internal error while processing that message. Please try again.')
+      } else {
+        const bridge = bridges.find(b => b.platform === msg.platform)
+        if (bridge) {
+          try {
+            await bridge.sendMessage({
+              platform: msg.platform,
+              chatId: msg.chatId,
+              text: 'I hit an internal error while processing that message. Please try again.',
+            })
+          } catch {}
+        }
+      }
     }
   }
 
@@ -128,9 +198,37 @@ async function main() {
       botToken: config.telegram.botToken,
       groupChatId: config.telegram.groupChatId || '',
     })
+    telegramMemberSync = new TelegramMemberSync(
+      db,
+      userMemory,
+      reasoning,
+      telegram,
+      config.telegram.groupChatId || undefined,
+    )
+    telegram.onGroupConnected(async (chat) => {
+      await telegramMemberSync!.handleBotAdded(chat)
+      if (await groupPolicy.shouldSendIntro('telegram', chat.id)) {
+        await telegram.sendMessage({
+          platform: 'telegram',
+          chatId: chat.id,
+          text: buildGroupIntroMessage(config.community.name, config.community.language),
+        }).catch(() => {})
+        await groupPolicy.markIntroSent('telegram', chat.id)
+      }
+    })
+    telegram.onMembersAdded((chat, members, source) => telegramMemberSync!.handleMembersAdded(chat, members, source))
+    telegram.onMemberStatusChanged((chat, member, oldStatus, newStatus, source) =>
+      telegramMemberSync!.handleMemberStatusChange(chat, member, oldStatus, newStatus, source))
     telegram.onMessage(handleMessage)
     bridges.push(telegram)
     runWithRestart('telegram', () => telegram.start(), health)
+    void telegramMemberSync.syncKnownMembers().catch((error) => {
+      reasoning.emit_reasoning({
+        jobName: 'telegram-member-sync',
+        level: 'detail',
+        message: `Initial Telegram member sync failed: ${String(error)}`,
+      })
+    })
   }
 
   // WhatsApp Cloud API bridge
@@ -150,17 +248,33 @@ async function main() {
   const scheduler = new Scheduler(config)
   const jobCtx = {
     llm, eventManager, userMemory, agentMemory, reasoning, config, sendDm, sendGroup, db,
+    telegramMemberSync,
     reason: (jobName: string, level: string, message: string, data?: Record<string, unknown>) => {
       reasoning.emit_reasoning({ jobName, level: level as any, message, data })
     },
   }
   runWithRestart('scheduler', () => scheduler.start(jobCtx), health)
 
+  const cloudSync = new CloudSyncClient({
+    config,
+    portal: publicPortal,
+    onStatus: (level, message) => {
+      reasoning.emit_reasoning({
+        jobName: 'cloud-sync',
+        level: level === 'error' ? 'detail' : level,
+        message,
+      })
+    },
+  })
+  await cloudSync.start().catch((error) => {
+    console.error('[cloud-sync] failed to start:', error)
+  })
+
   // Dashboard
   const dashboard = createDashboard({
     port: config.dashboard.port,
     secret: config.dashboard.secret,
-    db, eventManager, userMemory, agentMemory, reasoning, health, agentCore,
+    db, eventManager, userMemory, agentMemory, reasoning, health, config, agentCore,
   })
 
   // Mount WhatsApp webhook routes on dashboard server if WhatsApp is enabled
@@ -191,13 +305,134 @@ async function main() {
   // Import watcher
   const inboxDir = path.join(process.cwd(), 'import', 'inbox')
   const processedDir = path.join(process.cwd(), 'import', 'processed')
+  const failedDir = path.join(process.cwd(), 'import', 'failed')
   const analyzer = new ImportAnalyzer(llm, reasoning)
   const seeder = new ImportSeeder(db, userMemory, agentMemory)
-  const watcher = new ImportWatcher(inboxDir, processedDir, analyzer, seeder, reasoning)
+  const watcher = new ImportWatcher(db, inboxDir, processedDir, failedDir, analyzer, seeder, reasoning)
   runWithRestart('import-watcher', () => watcher.start(), health)
 
   console.log(`\n✓ All systems ready`)
-  console.log(`  Dashboard: http://127.0.0.1:${config.dashboard.port}`)
+  console.log(`  Dashboard: http://${config.dashboard.host}:${config.dashboard.port}`)
 }
 
-main().catch(console.error)
+function hasLlmCredentials(config: ReturnType<typeof loadConfig>['llm']) {
+  return Boolean(config.anthropicApiKey || config.openaiApiKey || config.openrouterApiKey)
+}
+
+function buildGroupIntroMessage(communityName: string, language: string) {
+  if (language.toLowerCase().startsWith('es')) {
+    return `Hola, soy Comunia, el gestor de comunidad con IA de ${communityName}. ` +
+      `Estoy acá para ayudar a que la gente se conecte mejor, descubra afinidades y organice planes juntos. ` +
+      `En este grupo voy a quedarme bastante en silencio: por defecto solo hablo acá si un admin me llama explícitamente. ` +
+      `Si quieres empezar a organizar un plan, conocer gente afín o pensar una idea, escríbeme por privado 1:1.`
+  }
+
+  if (language.toLowerCase().startsWith('pt')) {
+    return `Oi, eu sou a Comunia, a agente de comunidade com IA de ${communityName}. ` +
+      `Estou aqui para ajudar as pessoas a se conectarem melhor, descobrirem afinidades e organizarem planos juntas. ` +
+      `Neste grupo eu vou ficar mais em silêncio: por padrão só falo aqui quando um admin me chama explicitamente. ` +
+      `Se quiser começar a organizar um plano, conhecer pessoas com interesses parecidos ou pensar em uma ideia, me chama no 1:1.`
+  }
+
+  return `Hi, I'm Comunia, the AI community manager for ${communityName}. ` +
+    `I'm here to help people make better connections, discover shared interests, and organize plans together. ` +
+    `I'll stay mostly quiet in this group: by default I only speak here when an admin explicitly calls on me. ` +
+    `If you want help organizing something, meeting the right people, or shaping an idea, message me 1:1.`
+}
+
+const isDirectExecution = process.argv[1] !== undefined
+  && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (isDirectExecution) {
+  startApp().catch(console.error)
+}
+
+function createProgressSession(msg: InboundMessage, bridges: Bridge[]): TelegramProgressSession | undefined {
+  if (msg.platform !== 'telegram') return undefined
+
+  const bridge = bridges.find((candidate): candidate is TelegramBridge =>
+    candidate.platform === 'telegram' && candidate instanceof TelegramBridge)
+
+  if (!bridge) return undefined
+  return new TelegramProgressSession(bridge, msg.chatId, msg.replyTo)
+}
+
+class TelegramProgressSession {
+  private messageId?: number
+  private lastText?: string
+  private typingTimer?: NodeJS.Timeout
+
+  constructor(
+    private bridge: TelegramBridge,
+    private chatId: string,
+    private replyTo?: string,
+  ) {}
+
+  async update(text: string): Promise<void> {
+    if (!text || text === this.lastText) return
+
+    this.lastText = text
+    await this.ensureProgressMessage(text)
+  }
+
+  async finish(finalText: string): Promise<void> {
+    this.stopTyping()
+
+    if (this.messageId === undefined) {
+      await this.bridge.sendMessage({
+        platform: 'telegram',
+        chatId: this.chatId,
+        text: finalText,
+        replyTo: this.replyTo,
+      })
+      return
+    }
+
+    try {
+      await this.bridge.editMessageText(this.chatId, this.messageId, finalText)
+    } catch {
+      await this.bridge.sendMessage({
+        platform: 'telegram',
+        chatId: this.chatId,
+        text: finalText,
+        replyTo: this.replyTo,
+      })
+    }
+  }
+
+  async fail(message: string): Promise<void> {
+    await this.finish(message)
+  }
+
+  private async ensureProgressMessage(text: string): Promise<void> {
+    await this.bridge.sendChatAction(this.chatId, 'typing').catch(() => {})
+    this.startTyping()
+
+    if (this.messageId === undefined) {
+      const sent = await this.bridge.sendMessageWithMetadata({
+        platform: 'telegram',
+        chatId: this.chatId,
+        text,
+        replyTo: this.replyTo,
+      })
+      this.messageId = sent.messageId
+      return
+    }
+
+    await this.bridge.editMessageText(this.chatId, this.messageId, text).catch(() => {})
+  }
+
+  private startTyping(): void {
+    if (this.typingTimer) return
+
+    this.typingTimer = setInterval(() => {
+      void this.bridge.sendChatAction(this.chatId, 'typing').catch(() => {})
+    }, 4000)
+  }
+
+  private stopTyping(): void {
+    if (!this.typingTimer) return
+    clearInterval(this.typingTimer)
+    this.typingTimer = undefined
+  }
+}

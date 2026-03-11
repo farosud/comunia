@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MessageRouter } from '../router/index.js'
 import { createDb } from '../db/index.js'
-import { users } from '../db/schema.js'
+import { communitySettings, users } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 import type { InboundMessage } from '../bridges/types.js'
 
@@ -55,14 +55,42 @@ describe('MessageRouter', () => {
     expect(handleMessage).not.toHaveBeenCalled()
   })
 
-  it('routes normal messages to agent', async () => {
+  it('does not route normal non-admin group messages to the agent by default', async () => {
     const msg: InboundMessage = {
       platform: 'telegram', chatType: 'group', chatId: 'group1',
       userId: 'tg_456', userName: 'Ana', text: 'When is the next asado?',
       timestamp: new Date().toISOString(),
     }
+    const response = await router.route(msg)
+    expect(response).toBe('')
+    expect(handleMessage).not.toHaveBeenCalled()
+  })
+
+  it('allows explicit admin invocations in groups', async () => {
+    const msg: InboundMessage = {
+      platform: 'telegram', chatType: 'group', chatId: 'group1',
+      userId: 'admin1', userName: 'Admin', text: 'Comunia, help me draft the next event',
+      timestamp: new Date().toISOString(),
+    }
     await router.route(msg)
-    expect(handleMessage).toHaveBeenCalledWith(msg)
+    expect(handleMessage).toHaveBeenCalledWith(msg, undefined)
+  })
+
+  it('allows open group mode when the owner changes the setting', async () => {
+    db.insert(communitySettings).values({
+      key: 'group_response_mode',
+      value: 'open',
+      updatedAt: new Date().toISOString(),
+    }).run()
+
+    const msg: InboundMessage = {
+      platform: 'telegram', chatType: 'group', chatId: 'group1',
+      userId: 'tg_456', userName: 'Ana', text: 'When is the next asado?',
+      timestamp: new Date().toISOString(),
+    }
+
+    await router.route(msg)
+    expect(handleMessage).toHaveBeenCalledWith(msg, undefined)
   })
 
   it('updates lastActiveAt on every message', async () => {

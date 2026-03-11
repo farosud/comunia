@@ -126,4 +126,20 @@ describe('EventManager', () => {
     const drafts = await mgr.getDrafts()
     expect(drafts).toHaveLength(2)
   })
+
+  it('lists proposed events separately from drafts', async () => {
+    await mgr.create({
+      title: 'Asado en Cowork',
+      type: 'asado',
+      proposedBy: 'u1',
+      date: 'TBD',
+      status: 'proposed',
+      location: 'Cowork',
+    })
+
+    const proposals = await mgr.getProposals()
+    const drafts = await mgr.getDrafts()
+    expect(proposals).toHaveLength(1)
+    expect(drafts).toHaveLength(0)
+  })
 })

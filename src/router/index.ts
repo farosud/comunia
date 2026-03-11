@@ -2,28 +2,31 @@ import { eq } from 'drizzle-orm'
 import { users } from '../db/schema.js'
 import { randomUUID } from 'crypto'
 import type { InboundMessage } from '../bridges/types.js'
+import { GroupPolicy } from '../community/group-policy.js'
 
 type Db = any
 
 export class MessageRouter {
   private db: Db
   private adminIds: string[]
-  private handleMessage: (msg: InboundMessage) => Promise<string>
+  private groupPolicy: GroupPolicy
+  private handleMessage: (msg: InboundMessage, onProgress?: (text: string) => Promise<void>) => Promise<string>
   private handleAdmin: (command: string, msg: InboundMessage) => Promise<string>
 
   constructor(
     db: Db,
     adminIds: string[],
-    handleMessage: (msg: InboundMessage) => Promise<string>,
+    handleMessage: (msg: InboundMessage, onProgress?: (text: string) => Promise<void>) => Promise<string>,
     handleAdmin: (command: string, msg: InboundMessage) => Promise<string>,
   ) {
     this.db = db
     this.adminIds = adminIds
+    this.groupPolicy = new GroupPolicy(db)
     this.handleMessage = handleMessage
     this.handleAdmin = handleAdmin
   }
 
-  async route(msg: InboundMessage): Promise<string> {
+  async route(msg: InboundMessage, onProgress?: (text: string) => Promise<void>): Promise<string> {
     // Auto-register or update user
     await this.ensureUser(msg)
 
@@ -32,8 +35,18 @@ export class MessageRouter {
       return this.handleAdmin(msg.text, msg)
     }
 
+    if (msg.chatType === 'group') {
+      const shouldRespond = await this.groupPolicy.shouldRespondToGroupMessage({
+        userId: msg.userId,
+        text: msg.text,
+        replyTo: msg.replyTo,
+        adminIds: this.adminIds,
+      })
+      if (!shouldRespond) return ''
+    }
+
     // Route to agent
-    return this.handleMessage(msg)
+    return this.handleMessage(msg, onProgress)
   }
 
   private async ensureUser(msg: InboundMessage): Promise<void> {

@@ -9,6 +9,8 @@ import { createVenueResearchJob } from './jobs/venue-research.js'
 import { createEventIdeationJob } from './jobs/event-ideation.js'
 import { createSubgroupAnalysisJob } from './jobs/subgroup-analysis.js'
 import { createProfileEnrichmentJob } from './jobs/profile-enrichment.js'
+import { createTelegramMemberSyncJob } from './jobs/member-sync.js'
+import { createCommunityIdeasJob } from './jobs/community-ideas.js'
 import type { Config } from '../config.js'
 
 export class Scheduler {
@@ -26,6 +28,8 @@ export class Scheduler {
       createEventIdeationJob(config.scheduler.eventIdeationCron),
       createSubgroupAnalysisJob(config.scheduler.subgroupAnalysisCron),
       createProfileEnrichmentJob(),
+      createTelegramMemberSyncJob(config.scheduler.memberSyncCron),
+      createCommunityIdeasJob(config.scheduler.communityIdeaCron),
     ]
   }
 
@@ -47,6 +51,14 @@ export class Scheduler {
 
       this.tasks.push(task)
       console.log(`Scheduled job: ${job.name} (${job.schedule})`)
+
+      if (job.name === 'community-ideas') {
+        try {
+          await job.run({ ...ctx, reason })
+        } catch (err) {
+          reason(job.name, 'step', `Initial run failed: ${err}`)
+        }
+      }
     }
 
     // Keep the scheduler alive

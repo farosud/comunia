@@ -17,4 +17,4 @@ RUN mkdir -p agent data import/inbox import/processed
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

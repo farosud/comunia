@@ -141,7 +141,8 @@ export async function executeTool(name: string, input: Record<string, unknown>, 
       return `Event created as draft: "${event.title}" (${event.id}). Awaiting admin approval.${input.reasoning ? ` Reasoning: ${input.reasoning}` : ''}`
     }
     case 'rsvp_user': {
-      const rsvp = await ctx.eventManager.rsvp(input.eventId as string, input.userId as string, input.status as 'yes' | 'no' | 'maybe')
+      const resolvedUserId = await ctx.userMemory.resolveUserId(input.userId as string)
+      const rsvp = await ctx.eventManager.rsvp(input.eventId as string, resolvedUserId, input.status as 'yes' | 'no' | 'maybe')
       return `RSVP recorded: ${rsvp.status}`
     }
     case 'send_dm': {

@@ -18,6 +18,21 @@ describe('loadConfig', () => {
     expect(config.telegram.enabled).toBe(true)
   })
 
+  it('defaults dashboard host and database path', () => {
+    delete process.env.DASHBOARD_HOST
+    delete process.env.DATABASE_PATH
+    const config = loadConfig()
+    expect(config.dashboard.host).toBe('127.0.0.1')
+    expect(config.database.path).toBe('./data/comunia.db')
+  })
+
+  it('falls back to PORT when DASHBOARD_PORT is unset', () => {
+    delete process.env.DASHBOARD_PORT
+    process.env.PORT = '4321'
+    const config = loadConfig()
+    expect(config.dashboard.port).toBe(4321)
+  })
+
   it('parses "false" string as false (not truthy)', () => {
     process.env.WHATSAPP_ENABLED = 'false'
     const config = loadConfig()

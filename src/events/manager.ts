@@ -10,10 +10,12 @@ interface CreateEventInput {
   type: string
   proposedBy: string
   date: string
+  status?: string
   location?: string
   maxCapacity?: number
   minCapacity?: number
   budget?: string
+  agentNotes?: string
 }
 
 export class EventManager {
@@ -23,7 +25,7 @@ export class EventManager {
 
   async create(input: CreateEventInput) {
     const id = randomUUID()
-    const event = { id, ...input, status: 'draft', createdAt: new Date().toISOString() }
+    const event = { id, ...input, status: input.status || 'draft', createdAt: new Date().toISOString() }
     this.db.insert(events).values(event).run()
     return event
   }
@@ -48,6 +50,11 @@ export class EventManager {
       scoreBreakdown: JSON.stringify(breakdown),
       agentNotes: notes,
     }).where(eq(events.id, id)).run()
+  }
+
+  async update(id: string, patch: Partial<CreateEventInput>) {
+    this.db.update(events).set(patch).where(eq(events.id, id)).run()
+    return this.getById(id)
   }
 
   async rsvp(eventId: string, userId: string, status: 'yes' | 'no' | 'maybe') {
@@ -108,10 +115,21 @@ export class EventManager {
     return this.db.select().from(events).where(eq(events.status, 'draft')).all()
   }
 
+  async getProposals() {
+    return this.db.select().from(events).where(eq(events.status, 'proposed')).all()
+  }
+
+  async getLatestProposalByUser(userId: string) {
+    return this.db.select().from(events)
+      .where(and(eq(events.proposedBy, userId), eq(events.status, 'proposed')))
+      .all()
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+  }
+
   async getUpcoming() {
     return this.db.select().from(events)
       .where(gt(events.date, new Date().toISOString())).all()
-      .filter((e: any) => !['cancelled', 'completed', 'draft'].includes(e.status))
+      .filter((e: any) => !['cancelled', 'completed', 'draft', 'proposed'].includes(e.status))
   }
 
   async getRecent(days: number) {

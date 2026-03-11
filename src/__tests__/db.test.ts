@@ -78,13 +78,20 @@ describe('database', () => {
   it('tracks imports', () => {
     db.insert(importLog).values({
       id: 'i1', sourceFile: 'whatsapp-export.txt', type: 'whatsapp',
+      status: 'completed',
+      error: null,
       messagesProcessed: 14000, membersProcessed: 127,
-      entriesExtracted: 523, importedAt: new Date().toISOString(),
+      entriesExtracted: 523,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      importedAt: new Date().toISOString(),
     }).run()
 
     const logs = db.select().from(importLog).all()
     expect(logs).toHaveLength(1)
     expect(logs[0].messagesProcessed).toBe(14000)
+    expect(logs[0].status).toBe('completed')
   })
 
   it('creates the parent directory for file-backed databases', () => {

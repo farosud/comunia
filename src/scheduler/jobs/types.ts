@@ -4,6 +4,7 @@ import type { UserMemory } from '../../memory/user-memory.js'
 import type { AgentMemory } from '../../memory/agent-memory.js'
 import type { ReasoningStream } from '../../reasoning.js'
 import type { Config } from '../../config.js'
+import type { TelegramMemberSync } from '../../members/telegram-sync.js'
 
 export interface JobContext {
   llm: LLMProvider
@@ -15,6 +16,7 @@ export interface JobContext {
   sendDm: (userId: string, message: string) => Promise<void>
   sendGroup: (message: string) => Promise<void>
   db: any
+  telegramMemberSync?: TelegramMemberSync
   reason: (jobName: string, level: string, message: string, data?: Record<string, unknown>) => void
 }
 

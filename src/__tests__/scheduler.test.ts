@@ -4,6 +4,7 @@ import { createFeedbackJob } from '../scheduler/jobs/feedback.js'
 import { createReflectionJob } from '../scheduler/jobs/reflection.js'
 import { createDigestJob } from '../scheduler/jobs/digest.js'
 import { createReengagementJob } from '../scheduler/jobs/reengagement.js'
+import { createTelegramMemberSyncJob } from '../scheduler/jobs/member-sync.js'
 import type { JobContext } from '../scheduler/jobs/types.js'
 import { createDb } from '../db/index.js'
 import { users, events, rsvps, feedback } from '../db/schema.js'
@@ -29,7 +30,7 @@ function createMockContext(db: any, tmpDir: string): JobContext {
     reasoning: new ReasoningStream(),
     config: {
       community: { name: 'Test', language: 'en', type: 'local', adminUserIds: [] },
-      scheduler: { reminderHoursBefore: [48, 2], feedbackDelayHours: 24, digestCron: '0 10 * * 1', reflectionCron: '0 3 * * *', venueResearchCron: '0 9 * * 3', eventIdeationCron: '0 10 * * 1', subgroupAnalysisCron: '0 4 * * 0' },
+      scheduler: { reminderHoursBefore: [48, 2], feedbackDelayHours: 24, digestCron: '0 10 * * 1', reflectionCron: '0 3 * * *', venueResearchCron: '0 9 * * 3', eventIdeationCron: '0 10 * * 1', subgroupAnalysisCron: '0 4 * * 0', memberSyncCron: '*/15 * * * *' },
     } as any,
     sendDm: vi.fn(),
     sendGroup: vi.fn(),
@@ -100,5 +101,15 @@ describe('Scheduler Jobs', () => {
     await job.run(ctx)
 
     expect(ctx.sendDm).toHaveBeenCalled()
+  })
+
+  it('member sync job calls telegram sync service when configured', async () => {
+    const syncKnownMembers = vi.fn().mockResolvedValue(undefined)
+    ctx.telegramMemberSync = { syncKnownMembers } as any
+
+    const job = createTelegramMemberSyncJob('*/15 * * * *')
+    await job.run(ctx)
+
+    expect(syncKnownMembers).toHaveBeenCalled()
   })
 })

@@ -1,5 +1,5 @@
-import { eq, and } from 'drizzle-orm'
-import { userMemory } from '../db/schema.js'
+import { eq, and, or } from 'drizzle-orm'
+import { userMemory, users } from '../db/schema.js'
 import { randomUUID } from 'crypto'
 
 type Db = any
@@ -12,8 +12,10 @@ export class UserMemory {
   }
 
   async set(userId: string, category: string, key: string, value: string, confidence: number, source: string): Promise<void> {
+    const resolvedUserId = await this.resolveUserId(userId)
+
     const existing = this.db.select().from(userMemory)
-      .where(and(eq(userMemory.userId, userId), eq(userMemory.category, category), eq(userMemory.key, key)))
+      .where(and(eq(userMemory.userId, resolvedUserId), eq(userMemory.category, category), eq(userMemory.key, key)))
       .get()
 
     const now = new Date().toISOString()
@@ -24,19 +26,21 @@ export class UserMemory {
         .where(eq(userMemory.id, existing.id)).run()
     } else {
       this.db.insert(userMemory).values({
-        id: randomUUID(), userId, category, key, value, confidence, source,
+        id: randomUUID(), userId: resolvedUserId, category, key, value, confidence, source,
         createdAt: now, updatedAt: now,
       }).run()
     }
   }
 
   async getAll(userId: string) {
-    return this.db.select().from(userMemory).where(eq(userMemory.userId, userId)).all()
+    const resolvedUserId = await this.resolveUserId(userId)
+    return this.db.select().from(userMemory).where(eq(userMemory.userId, resolvedUserId)).all()
   }
 
   async getByCategory(userId: string, category: string) {
+    const resolvedUserId = await this.resolveUserId(userId)
     return this.db.select().from(userMemory)
-      .where(and(eq(userMemory.userId, userId), eq(userMemory.category, category))).all()
+      .where(and(eq(userMemory.userId, resolvedUserId), eq(userMemory.category, category))).all()
   }
 
   async formatForPrompt(userId: string): Promise<string> {
@@ -58,5 +62,17 @@ export class UserMemory {
       }
     }
     return lines.join('\n')
+  }
+
+  async resolveUserId(userId: string): Promise<string> {
+    const existingById = this.db.select().from(users).where(eq(users.id, userId)).get()
+    if (existingById) return existingById.id
+
+    const existingByPlatformId = this.db.select().from(users)
+      .where(or(eq(users.telegramId, userId), eq(users.whatsappId, userId))).get()
+
+    if (existingByPlatformId) return existingByPlatformId.id
+
+    throw new Error(`Unknown user identifier: ${userId}`)
   }
 }
