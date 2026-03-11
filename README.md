@@ -64,7 +64,7 @@ Telegram / WhatsApp
 | Database | SQLite via better-sqlite3 + Drizzle ORM |
 | Telegram | grammy |
 | WhatsApp | WhatsApp Cloud API (official) |
-| LLM | Claude (Anthropic) or OpenAI — switchable via config |
+| LLM | Claude (Anthropic), OpenAI, or OpenRouter — switchable via config |
 | Dashboard | Hono + htmx + vanilla JS |
 | Scheduling | node-cron |
 | CLI | @clack/prompts |
@@ -87,7 +87,8 @@ comunia/
 │   │   └── providers/              # LLM provider abstraction
 │   │       ├── types.ts            # Provider interface
 │   │       ├── claude.ts           # Anthropic Claude provider
-│   │       └── openai.ts           # OpenAI provider
+│   │       ├── openai.ts           # OpenAI provider
+│   │       └── openrouter.ts       # OpenRouter provider (multi-model)
 │   ├── bridges/
 │   │   ├── types.ts                # Unified message types
 │   │   ├── telegram.ts             # Telegram bridge (grammy)
@@ -164,9 +165,11 @@ Or run `npx comunia init` to generate it interactively.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LLM_PROVIDER` | `claude` or `openai` | `claude` |
+| `LLM_PROVIDER` | `claude`, `openai`, or `openrouter` | `claude` |
 | `ANTHROPIC_API_KEY` | Anthropic API key | — |
 | `OPENAI_API_KEY` | OpenAI API key (if using OpenAI) | — |
+| `OPENROUTER_API_KEY` | OpenRouter API key (if using OpenRouter) | — |
+| `OPENROUTER_MODEL` | Model to use via OpenRouter (e.g. `anthropic/claude-sonnet-4`) | `anthropic/claude-sonnet-4` |
 | `TELEGRAM_ENABLED` | Enable Telegram bridge | `true` |
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | — |
 | `TELEGRAM_GROUP_CHAT_ID` | Target group chat ID | — |
