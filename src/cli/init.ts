@@ -1,8 +1,11 @@
 import * as p from '@clack/prompts'
 import fs from 'fs'
+import path from 'path'
+import { resolveFromModule } from '../runtime-paths.js'
 
 export async function runInit() {
   p.intro('comunia setup wizard')
+  const templatesDir = resolveFromModule(import.meta.url, '../../templates')
 
   // 1. Platform selection
   const platform = await p.select({
@@ -199,20 +202,25 @@ LLM_MAX_PER_MINUTE=30
   // 7. Create agent directory and copy templates
   fs.mkdirSync('agent', { recursive: true })
 
-  if (!fs.existsSync('agent/soul.md') && fs.existsSync('templates/soul.example.md')) {
-    fs.copyFileSync('templates/soul.example.md', 'agent/soul.md')
+  const soulTemplate = path.join(templatesDir, 'soul.example.md')
+  const agentTemplate = path.join(templatesDir, 'agent.example.md')
+
+  if (!fs.existsSync('agent/soul.md') && fs.existsSync(soulTemplate)) {
+    fs.copyFileSync(soulTemplate, 'agent/soul.md')
     p.log.success('agent/soul.md created from template')
   } else if (!fs.existsSync('agent/soul.md')) {
     fs.writeFileSync('agent/soul.md', `# ${communityName} - Soul\n\nYou are the community manager for ${communityName}. You speak ${language}. You are warm, helpful, and proactive.\n`)
     p.log.success('agent/soul.md created')
   }
 
-  if (!fs.existsSync('agent/agent.md') && fs.existsSync('templates/agent.example.md')) {
-    fs.copyFileSync('templates/agent.example.md', 'agent/agent.md')
+  if (!fs.existsSync('agent/agent.md') && fs.existsSync(agentTemplate)) {
+    fs.copyFileSync(agentTemplate, 'agent/agent.md')
   } else if (!fs.existsSync('agent/agent.md')) {
     fs.writeFileSync('agent/agent.md', '# Agent Capabilities\n\nYou can create events, manage RSVPs, send messages, and learn about community members.\n')
   }
   p.log.success('agent/agent.md ready')
+
+  fs.mkdirSync('data', { recursive: true })
 
   if (!fs.existsSync('agent/memory.md')) {
     fs.writeFileSync('agent/memory.md', '# Community Memory\n\nNothing learned yet. This file will be updated as I learn about the community.\n')

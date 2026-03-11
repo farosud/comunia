@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { createApiRoutes } from './api.js'
+import { resolveFromModule } from '../runtime-paths.js'
 import type { EventManager } from '../events/manager.js'
 import type { UserMemory } from '../memory/user-memory.js'
 import type { AgentMemory } from '../memory/agent-memory.js'
@@ -23,6 +24,7 @@ interface DashboardConfig {
 
 export function createDashboard(config: DashboardConfig) {
   const app = new Hono()
+  const publicRoot = resolveFromModule(import.meta.url, './public')
 
   // Auth middleware for API routes
   app.use('/api/*', async (c, next) => {
@@ -55,7 +57,7 @@ export function createDashboard(config: DashboardConfig) {
   app.route('/api', api)
 
   // Static files
-  app.use('/*', serveStatic({ root: './src/dashboard/public' }))
+  app.use('/*', serveStatic({ root: publicRoot }))
 
   return {
     app,

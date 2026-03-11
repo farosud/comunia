@@ -16,6 +16,7 @@ import { ImportSeeder } from './import/seeder.js'
 import { ImportWatcher } from './import/watcher.js'
 import { createDashboard } from './dashboard/server.js'
 import { SmartTargeting } from './events/targeting.js'
+import { resolveFromModule } from './runtime-paths.js'
 import PQueue from 'p-queue'
 import path from 'path'
 import fs from 'fs'
@@ -39,6 +40,7 @@ async function main() {
   const db = createDb()
   const health = new HealthMonitor()
   const reasoning = new ReasoningStream()
+  const templatesDir = resolveFromModule(import.meta.url, '../templates')
 
   console.log(`🦞 comunia v0.1.0`)
   console.log(`Community: ${config.community.name}`)
@@ -49,7 +51,7 @@ async function main() {
 
   for (const file of ['soul.md', 'memory.md', 'agent.md']) {
     const dest = path.join(agentDir, file)
-    const tmpl = path.join(process.cwd(), 'templates', file.replace('.md', '.example.md'))
+    const tmpl = path.join(templatesDir, file.replace('.md', '.example.md'))
     if (!fs.existsSync(dest) && fs.existsSync(tmpl)) {
       fs.copyFileSync(tmpl, dest)
       console.log(`  Created agent/${file} from template`)

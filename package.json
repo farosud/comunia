@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-assets.mjs",
     "start": "node dist/src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

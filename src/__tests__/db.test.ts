@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { createDb } from '../db/index.js'
 import { users, events, rsvps, feedback, userMemory, research, importLog } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 
 describe('database', () => {
   let db: ReturnType<typeof createDb>
@@ -82,5 +85,17 @@ describe('database', () => {
     const logs = db.select().from(importLog).all()
     expect(logs).toHaveLength(1)
     expect(logs[0].messagesProcessed).toBe(14000)
+  })
+
+  it('creates the parent directory for file-backed databases', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comunia-db-'))
+    const dbPath = path.join(tempDir, 'nested', 'comunia.db')
+
+    createDb(dbPath)
+
+    expect(fs.existsSync(path.dirname(dbPath))).toBe(true)
+    expect(fs.existsSync(dbPath)).toBe(true)
+
+    fs.rmSync(tempDir, { recursive: true, force: true })
   })
 })
