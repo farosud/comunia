@@ -8,9 +8,11 @@ const boolString = z.string().optional().transform(s => s === 'true')
 
 const configSchema = z.object({
   llm: z.object({
-    provider: z.enum(['claude', 'openai', 'ollama']).default('claude'),
+    provider: z.enum(['claude', 'openai', 'openrouter', 'ollama']).default('claude'),
     anthropicApiKey: z.string().optional(),
     openaiApiKey: z.string().optional(),
+    openrouterApiKey: z.string().optional(),
+    openrouterModel: z.string().default('anthropic/claude-sonnet-4').optional(),
     ollamaUrl: z.string().optional(),
     maxConcurrent: z.coerce.number().default(10),
     maxPerMinute: z.coerce.number().default(30),
@@ -58,6 +60,8 @@ export function loadConfig(): Config {
       provider: process.env.LLM_PROVIDER,
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
+      openrouterApiKey: process.env.OPENROUTER_API_KEY,
+      openrouterModel: process.env.OPENROUTER_MODEL,
       ollamaUrl: process.env.OLLAMA_URL,
       maxConcurrent: process.env.LLM_MAX_CONCURRENT,
       maxPerMinute: process.env.LLM_MAX_PER_MINUTE,
