@@ -4,6 +4,7 @@ dist/
 agent/soul.md
 agent/memory.md
 agent/agent.md
+agent/users/
 data/
 *.db
 import/inbox/*
