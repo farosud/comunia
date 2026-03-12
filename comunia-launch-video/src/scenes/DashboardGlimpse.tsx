@@ -1,7 +1,5 @@
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { colors } from '../styles/theme';
-import { dashboardStats } from '../data/content';
-import { StatCard } from '../components/StatCard';
 
 export const DashboardGlimpse: React.FC = () => {
   const frame = useCurrentFrame();
@@ -48,28 +46,6 @@ export const DashboardGlimpse: React.FC = () => {
             transform: `translateX(${panX}px) scale(1.02)`,
           }}
         />
-      </div>
-
-      {/* Stat cards overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 40,
-          left: 60,
-          right: 60,
-          display: 'flex',
-          gap: 20,
-        }}
-      >
-        {dashboardStats.map((stat, i) => (
-          <StatCard
-            key={stat.label}
-            label={stat.label}
-            value={stat.isText ? (stat.value as string) : (stat.value as number)}
-            isText={stat.isText}
-            delay={i * 8}
-          />
-        ))}
       </div>
 
       {/* Telegram notification badge */}
