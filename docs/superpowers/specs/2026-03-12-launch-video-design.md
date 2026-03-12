@@ -21,6 +21,7 @@ A 25-second, fast-paced launch/demo video for **comunia.chat** built with Remoti
   - Headings/brand: Georgia (serif)
   - UI/chat: System sans-serif (-apple-system, sans-serif)
   - Terminal: Monospace (JetBrains Mono or similar)
+- **Chat background:** Telegram-style warm beige (`#e8ddd3`)
 - **Vibe:** Notion/Cal.com warmth — human, editorial, not techy
 
 ## Scene Breakdown
@@ -62,7 +63,7 @@ $ npx comunia init
 - Agent Status: Live (fades in)
 
 **Animation:**
-- Screenshot slides in from right (or zooms from the URL)
+- Screenshot slides in from right
 - Stat numbers count up using `interpolate()` with easing
 - Subtle slow pan across the dashboard (Ken Burns style, ~20px drift)
 - At frame ~280: a Telegram notification badge pulses in the corner
@@ -86,8 +87,10 @@ $ npx comunia init
 
 **Animation:**
 - Chat background is Telegram-style warm beige (`#e8ddd3`)
+- Chat bubbles follow Telegram conventions: other users' bubbles enter from left, sent-side from right
 - Marco's first bubble slides in from left with slight bounce (spring animation)
 - Brief typing indicator ("Comunia is typing...") with animated dots
+- Comunia's bubble enters from left (it's a group chat, agent is another participant)
 - Comunia's message builds progressively:
   - First the greeting line
   - Then each person slides in one at a time (staggered ~8 frames apart)
@@ -159,7 +162,7 @@ Using `@remotion/transitions`:
 
 ## Asset Requirements
 
-- **Dashboard screenshot:** Capture of `http://127.0.0.1:3001` at 1920x1080 (or crop to fit). Taken before build.
+- **Dashboard screenshot:** Capture of `http://127.0.0.1:3001` at 1920x1080 (or crop to fit). This is a pre-step — take the screenshot before running `npx remotion render`. Use a placeholder solid color during development if the dashboard isn't running.
 - **Audio:** Not included in Remotion build — user adds beat track in post.
 
 ## Frame Budget
