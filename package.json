@@ -1,6 +1,6 @@
 {
   "name": "comunia",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Open-source AI community manager — events, profiling, learning. Deploy with docker compose up.",
   "type": "module",
   "main": "dist/src/index.js",
