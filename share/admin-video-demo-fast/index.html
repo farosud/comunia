@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comunia Fast Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0d1016;
+        --bg2: #141a23;
+        --panel: rgba(18, 25, 36, 0.78);
+        --panel-2: rgba(255, 255, 255, 0.06);
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #f4f7fb;
+        --muted: #91a1b9;
+        --green: #5bf0b0;
+        --green-2: #1ccf85;
+        --blue: #6aa4ff;
+        --pink: #ff6fa3;
+        --yellow: #ffcf57;
+        --shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+        --font: "Sora", sans-serif;
+        --mono: "IBM Plex Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font);
+        background:
+          radial-gradient(circle at top left, rgba(106, 164, 255, 0.18), transparent 24%),
+          radial-gradient(circle at bottom right, rgba(255, 111, 163, 0.14), transparent 28%),
+          linear-gradient(180deg, #0a0d12 0%, var(--bg) 44%, var(--bg2) 100%);
+        color: var(--text);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.12;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: radial-gradient(circle at center, black 30%, transparent 78%);
+      }
+
+      .frame {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+      }
+
+      .stage {
+        position: absolute;
+        inset: 0;
+        padding: 26px;
+      }
+
+      .topline {
+        position: absolute;
+        top: 22px;
+        left: 26px;
+        right: 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 12;
+      }
+
+      .tag,
+      .mini-tag,
+      .metric-label {
+        font: 500 12px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-dot {
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, var(--green), var(--blue));
+        box-shadow: 0 0 0 8px rgba(91, 240, 176, 0.08);
+      }
+
+      .brand strong {
+        font-size: 18px;
+        letter-spacing: -0.04em;
+      }
+
+      .title-block {
+        position: absolute;
+        left: 32px;
+        top: 72px;
+        width: 620px;
+        z-index: 10;
+        transition: opacity 420ms ease, transform 420ms ease;
+      }
+
+      .title-block.hidden {
+        opacity: 0;
+        transform: translateY(-12px);
+      }
+
+      .title-block h1,
+      .final-card h2 {
+        margin: 10px 0 0;
+        font-size: 64px;
+        line-height: 0.94;
+        letter-spacing: -0.06em;
+      }
+
+      .subtitle {
+        margin-top: 18px;
+        color: #cad5e5;
+        font-size: 18px;
+        line-height: 1.6;
+        max-width: 520px;
+      }
+
+      .grid {
+        position: absolute;
+        inset: 160px 26px 96px;
+        display: grid;
+        grid-template-columns: 1.06fr 0.94fr;
+        gap: 18px;
+      }
+
+      .column {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card,
+      .terminal,
+      .phone,
+      .recommendation {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(16px);
+      }
+
+      .terminal {
+        position: relative;
+        overflow: hidden;
+        min-height: 210px;
+        padding: 18px 20px 20px;
+      }
+
+      .terminal::before,
+      .phone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 36%);
+        pointer-events: none;
+      }
+
+      .terminal-head {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .terminal-head span {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .terminal pre {
+        margin: 0;
+        color: #dbe7f5;
+        font: 400 18px/1.8 var(--mono);
+        white-space: pre-wrap;
+      }
+
+      .typed-command {
+        color: var(--green);
+      }
+
+      .blink {
+        display: inline-block;
+        width: 10px;
+        height: 18px;
+        margin-left: 4px;
+        background: var(--green);
+        vertical-align: -3px;
+        animation: blink 1s steps(1) infinite;
+      }
+
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .dashboard {
+        display: grid;
+        gap: 18px;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        padding: 14px 14px 16px;
+      }
+
+      .metric-value {
+        margin-top: 10px;
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.05em;
+      }
+
+      .members-card {
+        padding: 16px;
+        min-height: 248px;
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .section-title h3,
+      .recommendation-title {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: -0.05em;
+      }
+
+      .member-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .member {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr);
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--panel-2);
+        transition: transform 320ms ease, border-color 320ms ease, background 320ms ease;
+      }
+
+      .member.highlight {
+        border-color: rgba(91, 240, 176, 0.36);
+        background: rgba(91, 240, 176, 0.08);
+        transform: translateX(10px);
+      }
+
+      .avatar {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        font: 600 16px var(--mono);
+        background: linear-gradient(135deg, rgba(106, 164, 255, 0.22), rgba(255, 111, 163, 0.2));
+      }
+
+      .member strong {
+        display: block;
+        font-size: 16px;
+      }
+
+      .member p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .member .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .chip {
+        padding: 5px 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #d6e1f2;
+        font: 500 11px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .phone {
+        position: relative;
+        padding: 14px 14px 18px;
+        min-height: 458px;
+        overflow: hidden;
+      }
+
+      .phone-shell {
+        position: absolute;
+        inset: 22px 18px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, #18222f, #121922);
+      }
+
+      .phone-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .phone-top strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .phone-top span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .chat {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+      }
+
+      .bubble {
+        max-width: 88%;
+        padding: 12px 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #eaf2fd;
+        transform: translateY(24px);
+        opacity: 0;
+        transition: transform 320ms ease, opacity 320ms ease;
+      }
+
+      .bubble.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      .bubble.user {
+        justify-self: end;
+        background: linear-gradient(135deg, #2a4c86, #3e5e91);
+      }
+
+      .bubble.bot {
+        justify-self: start;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .bubble .bubble-label {
+        display: block;
+        margin-bottom: 6px;
+        color: #95c7ff;
+        font: 500 11px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .recommendations {
+        position: absolute;
+        right: 26px;
+        bottom: 110px;
+        width: 360px;
+        display: grid;
+        gap: 10px;
+        z-index: 8;
+      }
+
+      .recommendations.hidden {
+        opacity: 0;
+        transform: translateY(18px);
+        pointer-events: none;
+      }
+
+      .recommendations,
+      .final-card {
+        transition: opacity 320ms ease, transform 320ms ease;
+      }
+
+      .recommendation {
+        padding: 14px;
+        background: rgba(91, 240, 176, 0.08);
+        border-color: rgba(91, 240, 176, 0.16);
+        transform: translateX(30px);
+        opacity: 0;
+        transition: transform 360ms ease, opacity 360ms ease;
+      }
+
+      .recommendation.show {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      .recommendation-title {
+        font-size: 18px;
+      }
+
+      .recommendation p {
+        margin: 8px 0 0;
+        color: #d3e8db;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .recommendation .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .recommendation .mini-tag {
+        color: var(--green);
+      }
+
+      .draft-card {
+        position: absolute;
+        left: 670px;
+        bottom: 112px;
+        width: 220px;
+        padding: 14px;
+        border: 1px solid rgba(255, 207, 87, 0.18);
+        background: rgba(255, 207, 87, 0.08);
+        box-shadow: var(--shadow);
+        opacity: 0;
+        transform: translateY(18px);
+        transition: opacity 320ms ease, transform 320ms ease;
+        z-index: 7;
+      }
+
+      .draft-card.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .draft-card strong {
+        display: block;
+        font-size: 18px;
+      }
+
+      .draft-card p {
+        margin: 8px 0 0;
+        color: #ffe8af;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .footer-bar {
+        position: absolute;
+        left: 26px;
+        right: 26px;
+        bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: end;
+        z-index: 15;
+      }
+
+      .footer-copy {
+        max-width: 720px;
+      }
+
+      .footer-main {
+        font-size: 28px;
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+      }
+
+      .footer-sub {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .cta-pill {
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.06);
+        font: 500 12px var(--mono);
+        color: #dbe7f5;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .final-card {
+        position: absolute;
+        inset: 120px 180px 110px;
+        padding: 40px 44px;
+        border: 1px solid rgba(91, 240, 176, 0.16);
+        background:
+          radial-gradient(circle at top right, rgba(91, 240, 176, 0.12), transparent 28%),
+          linear-gradient(180deg, rgba(18, 25, 36, 0.92), rgba(13, 17, 22, 0.94));
+        box-shadow: var(--shadow);
+        z-index: 20;
+        opacity: 0;
+        transform: scale(0.96);
+        pointer-events: none;
+      }
+
+      .final-card.show {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .final-card p {
+        margin: 18px 0 0;
+        max-width: 680px;
+        color: #c6d3e8;
+        font-size: 20px;
+        line-height: 1.6;
+      }
+
+      .final-links {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+
+      .final-link {
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.06);
+        font: 500 13px var(--mono);
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="stage">
+        <div class="topline">
+          <div class="brand">
+            <div class="brand-dot"></div>
+            <strong>Comunia</strong>
+          </div>
+          <div class="tag">fast demo / admin flow / 22s</div>
+        </div>
+
+        <div class="title-block" id="title-block">
+          <div class="tag">AI operator for Telegram + WhatsApp communities</div>
+          <h1>From one dinner idea to the right three people.</h1>
+          <div class="subtitle">
+            Fast setup. Member memory. Shared signals. Real-world plans that do not die in the scroll.
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="column dashboard">
+            <div class="terminal">
+              <div class="terminal-head"><span></span><span></span><span></span></div>
+              <pre id="terminal-text"><span class="typed-command" id="typed-command"></span><span class="blink" id="cursor-blink"></span></pre>
+            </div>
+
+            <div class="metrics">
+              <div class="card metric">
+                <div class="metric-label">Members</div>
+                <div class="metric-value">128</div>
+              </div>
+              <div class="card metric">
+                <div class="metric-label">Signals</div>
+                <div class="metric-value">14</div>
+              </div>
+              <div class="card metric">
+                <div class="metric-label">Drafts</div>
+                <div class="metric-value">03</div>
+              </div>
+              <div class="card metric">
+                <div class="metric-label">Matches</div>
+                <div class="metric-value">09</div>
+              </div>
+            </div>
+
+            <div class="card members-card">
+              <div class="section-title">
+                <h3>Member memory</h3>
+                <div class="mini-tag">shared interests</div>
+              </div>
+              <div class="member-list">
+                <div class="member" id="member-1">
+                  <div class="avatar">MO</div>
+                  <div>
+                    <strong>Mora</strong>
+                    <p>Often pushes for weekend dinners and keeps bringing up AI-generated art, exhibitions, and creative tools.</p>
+                    <div class="chips">
+                      <div class="chip">art</div>
+                      <div class="chip">ai</div>
+                      <div class="chip">weekends</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="member" id="member-2">
+                  <div class="avatar">LU</div>
+                  <div>
+                    <strong>Lucio</strong>
+                    <p>Asked twice for a smaller dinner format where people can talk about visual culture and generative workflows.</p>
+                    <div class="chips">
+                      <div class="chip">small dinners</div>
+                      <div class="chip">art + ai</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="member" id="member-3">
+                  <div class="avatar">AL</div>
+                  <div>
+                    <strong>Alma</strong>
+                    <p>Quiet in the group, but reacts strongly to anything around AI aesthetics, curation, and gallery culture.</p>
+                    <div class="chips">
+                      <div class="chip">cultural tech</div>
+                      <div class="chip">weekends</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="column">
+            <div class="phone">
+              <div class="phone-shell">
+                <div class="phone-top">
+                  <div>
+                    <strong>Founders BA</strong>
+                    <span>Telegram · 248 members</span>
+                  </div>
+                  <div class="mini-tag">live chat</div>
+                </div>
+                <div class="chat">
+                  <div class="bubble user" id="bubble-1">
+                    <span class="bubble-label">Mora</span>
+                    Anyone up for a small dinner this weekend to talk about art + AI?
+                  </div>
+                  <div class="bubble bot" id="bubble-2">
+                    <span class="bubble-label">Comunia</span>
+                    I’m seeing a strong overlap here. Three members have recently asked for almost exactly this.
+                  </div>
+                  <div class="bubble bot" id="bubble-3">
+                    <span class="bubble-label">Comunia</span>
+                    Best matches right now: Lucio, Alma, and Mora. All three show recurring art + AI interest and prefer weekend, low-noise formats.
+                  </div>
+                  <div class="bubble bot" id="bubble-4">
+                    <span class="bubble-label">Comunia</span>
+                    I can turn this into a dinner draft and prep intros for the group admin.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="recommendations hidden" id="recommendations">
+          <div class="recommendation" id="rec-1">
+            <div class="recommendation-title">Mora</div>
+            <p>High intent. Suggested the dinner. Repeated weekend signal. Wants a smaller art + AI conversation.</p>
+            <div class="row">
+              <div class="mini-tag">starter</div>
+              <div class="mini-tag">weekend</div>
+            </div>
+          </div>
+          <div class="recommendation" id="rec-2">
+            <div class="recommendation-title">Lucio</div>
+            <p>Recently asked for a dinner around visual culture, generative tools, and creative workflows.</p>
+            <div class="row">
+              <div class="mini-tag">high fit</div>
+              <div class="mini-tag">small group</div>
+            </div>
+          </div>
+          <div class="recommendation" id="rec-3">
+            <div class="recommendation-title">Alma</div>
+            <p>Strong reaction history on AI aesthetics and gallery-adjacent topics. Better in intimate formats.</p>
+            <div class="row">
+              <div class="mini-tag">warm member</div>
+              <div class="mini-tag">art + ai</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="draft-card" id="draft-card">
+          <div class="mini-tag">new event draft</div>
+          <strong>Weekend art + AI dinner</strong>
+          <p>Matched 3 high-fit members. Suggested format: Saturday, 20:00, 6-8 people, low-noise table.</p>
+        </div>
+
+        <div class="footer-bar">
+          <div class="footer-copy">
+            <div class="footer-main" id="footer-main">Set up the operator layer. Then let the chat start routing itself.</div>
+            <div class="footer-sub" id="footer-sub">Comunia uses member memory and live signal detection to move from vague conversation to a better real-world plan.</div>
+          </div>
+          <div class="cta-pill" id="cta-pill">npx comunia init</div>
+        </div>
+      </div>
+
+      <div class="final-card" id="final-card">
+        <div class="tag">AI for community ops</div>
+        <h2>Chat signal -> member match -> real dinner.</h2>
+        <p>
+          Comunia helps community admins go from a passing idea in Telegram to the right people,
+          the right format, and a draft worth acting on.
+        </p>
+        <div class="final-links">
+          <div class="final-link">Website: comunia.chat</div>
+          <div class="final-link">GitHub: github.com/farosud/comunia</div>
+          <div class="final-link">Command: npx comunia init</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const command = "npx comunia init";
+      const typedCommand = document.getElementById("typed-command");
+      const footerMain = document.getElementById("footer-main");
+      const footerSub = document.getElementById("footer-sub");
+      const ctaPill = document.getElementById("cta-pill");
+      const bubbles = [1, 2, 3, 4].map((n) => document.getElementById(`bubble-${n}`));
+      const recs = [1, 2, 3].map((n) => document.getElementById(`rec-${n}`));
+      const members = [1, 2, 3].map((n) => document.getElementById(`member-${n}`));
+      const recommendations = document.getElementById("recommendations");
+      const draftCard = document.getElementById("draft-card");
+      const finalCard = document.getElementById("final-card");
+      const titleBlock = document.getElementById("title-block");
+      const cursorBlink = document.getElementById("cursor-blink");
+
+      let index = 0;
+
+      function typeCommand() {
+        if (index <= command.length) {
+          typedCommand.textContent = command.slice(0, index);
+          index += 1;
+          setTimeout(typeCommand, 80);
+          return;
+        }
+
+        cursorBlink.style.display = "none";
+        document.getElementById("terminal-text").innerHTML +=
+          "\n\n✔ workspace created\n✔ Telegram detected\n✔ dashboard ready on localhost\n✔ member memory enabled";
+      }
+
+      setTimeout(typeCommand, 700);
+
+      setTimeout(() => {
+        titleBlock.classList.add("hidden");
+        footerMain.textContent = "A member asks for a weekend dinner about art + AI.";
+        footerSub.textContent = "The bot reads the signal, checks memory, and looks for other members asking for the same thing.";
+        ctaPill.textContent = "Telegram signal detected";
+      }, 3200);
+
+      setTimeout(() => bubbles[0].classList.add("show"), 4200);
+      setTimeout(() => bubbles[1].classList.add("show"), 5900);
+      setTimeout(() => bubbles[2].classList.add("show"), 7600);
+
+      setTimeout(() => {
+        recommendations.classList.remove("hidden");
+        footerMain.textContent = "Three high-fit members surface immediately.";
+        footerSub.textContent = "Same topic, same format preference, same timing signal. No manual digging through chat history.";
+        ctaPill.textContent = "3 members matched";
+      }, 8400);
+
+      setTimeout(() => {
+        recs[0].classList.add("show");
+        members[0].classList.add("highlight");
+      }, 9000);
+
+      setTimeout(() => {
+        recs[1].classList.add("show");
+        members[1].classList.add("highlight");
+      }, 9800);
+
+      setTimeout(() => {
+        recs[2].classList.add("show");
+        members[2].classList.add("highlight");
+      }, 10600);
+
+      setTimeout(() => {
+        bubbles[3].classList.add("show");
+        draftCard.classList.add("show");
+        footerMain.textContent = "Then the agent turns the match into an event draft.";
+        footerSub.textContent = "This is the operator layer: signal in, memory check, member match, draft out.";
+        ctaPill.textContent = "weekend dinner draft";
+      }, 12600);
+
+      setTimeout(() => {
+        footerMain.textContent = "Fast setup. Shared memory. Better matches. Real rooms.";
+        footerSub.textContent = "Built for communities that live in Telegram and WhatsApp but want more than endless scrolling.";
+        ctaPill.textContent = "comunia.chat";
+      }, 16200);
+
+      setTimeout(() => {
+        finalCard.classList.add("show");
+      }, 18800);
+    </script>
+  </body>
+</html>

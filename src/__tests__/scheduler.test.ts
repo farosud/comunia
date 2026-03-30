@@ -5,13 +5,15 @@ import { createReflectionJob } from '../scheduler/jobs/reflection.js'
 import { createDigestJob } from '../scheduler/jobs/digest.js'
 import { createReengagementJob } from '../scheduler/jobs/reengagement.js'
 import { createTelegramMemberSyncJob } from '../scheduler/jobs/member-sync.js'
+import { createProductIdeasJob } from '../scheduler/jobs/product-ideas.js'
 import type { JobContext } from '../scheduler/jobs/types.js'
 import { createDb } from '../db/index.js'
-import { users, events, rsvps, feedback } from '../db/schema.js'
+import { users, events, rsvps, feedback, importLog } from '../db/schema.js'
 import { AgentMemory } from '../memory/agent-memory.js'
 import { UserMemory } from '../memory/user-memory.js'
 import { EventManager } from '../events/manager.js'
 import { ReasoningStream } from '../reasoning.js'
+import { ProductIdeas } from '../community/product-ideas.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -30,7 +32,7 @@ function createMockContext(db: any, tmpDir: string): JobContext {
     reasoning: new ReasoningStream(),
     config: {
       community: { name: 'Test', language: 'en', type: 'local', adminUserIds: [] },
-      scheduler: { reminderHoursBefore: [48, 2], feedbackDelayHours: 24, digestCron: '0 10 * * 1', reflectionCron: '0 3 * * *', venueResearchCron: '0 9 * * 3', eventIdeationCron: '0 10 * * 1', subgroupAnalysisCron: '0 4 * * 0', memberSyncCron: '*/15 * * * *' },
+      scheduler: { reminderHoursBefore: [48, 2], feedbackDelayHours: 24, digestCron: '0 10 * * 1', reflectionCron: '0 3 * * *', venueResearchCron: '0 9 * * 3', eventIdeationCron: '0 10 * * 1', subgroupAnalysisCron: '0 4 * * 0', memberSyncCron: '*/15 * * * *', communityIdeaCron: '*/15 * * * *', productIdeaCron: '0 10 * * *' },
     } as any,
     sendDm: vi.fn(),
     sendGroup: vi.fn(),
@@ -111,5 +113,57 @@ describe('Scheduler Jobs', () => {
     await job.run(ctx)
 
     expect(syncKnownMembers).toHaveBeenCalled()
+  })
+
+  it('product ideas job creates starter ideas from imported signals', async () => {
+    db.insert(importLog).values({
+      id: 'import-1',
+      sourceFile: 'result.json',
+      type: 'telegram',
+      status: 'completed',
+      error: null,
+      messagesProcessed: 300,
+      membersProcessed: 12,
+      entriesExtracted: 20,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      importedAt: new Date().toISOString(),
+    }).run()
+
+    ctx.productIdeas = new ProductIdeas(db, ctx.llm, new AgentMemory(tmpDir), {
+      community: { name: 'Test', type: 'local', location: 'Buenos Aires' },
+    } as any)
+
+    ;(ctx.llm.chat as any).mockResolvedValue({
+      text: JSON.stringify([
+        {
+          title: 'Member graph',
+          summary: 'Graph relationships and shared interests.',
+          targetMembers: 'Admins',
+          rationale: 'Imported data shows hidden clusters.',
+          buildPrompt: 'Build a member graph MVP.',
+        },
+        {
+          title: 'Topic tracker',
+          summary: 'Track recurring asks.',
+          targetMembers: 'Operators',
+          rationale: 'Repeated asks can be productized.',
+          buildPrompt: 'Build a topic tracker MVP.',
+        },
+        {
+          title: 'Dinner co-pilot',
+          summary: 'Turn dinner ideas into plans.',
+          targetMembers: 'Members organizing plans',
+          rationale: 'Members keep proposing dinners.',
+          buildPrompt: 'Build a dinner co-pilot MVP.',
+        },
+      ]),
+    })
+
+    const job = createProductIdeasJob('0 10 * * *')
+    await job.run(ctx)
+
+    expect(ctx.productIdeas.listIdeas()).toHaveLength(3)
   })
 })

@@ -93,6 +93,24 @@ describe('MessageRouter', () => {
     expect(handleMessage).toHaveBeenCalledWith(msg, undefined)
   })
 
+  it('blocks all inbound group replies in announcements-only mode', async () => {
+    db.insert(communitySettings).values({
+      key: 'group_response_mode',
+      value: 'announcements_only',
+      updatedAt: new Date().toISOString(),
+    }).run()
+
+    const msg: InboundMessage = {
+      platform: 'telegram', chatType: 'group', chatId: 'group1',
+      userId: 'admin1', userName: 'Admin', text: 'Comunia, answer this in the group',
+      timestamp: new Date().toISOString(),
+    }
+
+    const response = await router.route(msg)
+    expect(response).toBe('')
+    expect(handleMessage).not.toHaveBeenCalled()
+  })
+
   it('updates lastActiveAt on every message', async () => {
     const msg: InboundMessage = {
       platform: 'telegram', chatType: 'dm', chatId: 'chat1',

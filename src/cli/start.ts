@@ -4,6 +4,7 @@ import path from 'path'
 import { parse as parseEnv } from 'dotenv'
 import process from 'process'
 import { CommunityWorkspaceStore } from './community-workspaces.js'
+import { ensureWorkspaceDashboardPort } from './dashboard-port.js'
 
 export async function runStart() {
   const store = new CommunityWorkspaceStore()
@@ -57,13 +58,15 @@ export async function runStart() {
 
   store.markStarted(choice.workspace.path)
   process.chdir(choice.workspace.path)
+  const portAssignment = await ensureWorkspaceDashboardPort(choice.workspace.path)
   const env = readWorkspaceEnv(choice.workspace.path)
   const dashboardHost = env.DASHBOARD_HOST || '127.0.0.1'
-  const dashboardPort = env.DASHBOARD_PORT || '3000'
+  const dashboardPort = String(portAssignment.port)
   p.note(
     `Launching ${choice.workspace.name}\n${choice.workspace.path}\n\n` +
     `Dashboard URL: http://${dashboardHost}:${dashboardPort}\n` +
     `Dashboard secret: ${env.DASHBOARD_SECRET || 'Not found in .env'}\n\n` +
+    `${portAssignment.changed ? `Dashboard port was reassigned automatically because the previous one was already in use.\n\n` : ''}` +
     `Each workspace has its own dashboard, public site, agent files, and data.`,
     'Starting Community',
   )

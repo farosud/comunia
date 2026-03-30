@@ -64,6 +64,13 @@
       "when": 1773271804000,
       "tag": "0008_silent_import_completed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1773275400000,
+      "tag": "0009_public_product_ideas",
+      "breakpoints": true
     }
   ]
 }

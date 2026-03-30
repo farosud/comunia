@@ -12,6 +12,7 @@ import { EventManager } from '../events/manager.js'
 import { ReasoningStream } from '../reasoning.js'
 import type { InboundMessage } from '../bridges/types.js'
 import type { Config } from '../config.js'
+import type { GroupPolicy } from '../community/group-policy.js'
 
 interface AgentDeps {
   llm: LLMProvider
@@ -22,6 +23,8 @@ interface AgentDeps {
   config: Config
   sendDm: (userId: string, message: string) => Promise<void>
   sendGroup: (message: string) => Promise<void>
+  createGroupTopic?: (name: string) => Promise<{ messageThreadId: number; name: string }>
+  groupPolicy?: GroupPolicy
   db: any
 }
 
@@ -32,10 +35,13 @@ export class AgentCore {
 
   async handleMessage(msg: InboundMessage, onProgress?: (text: string) => Promise<void>): Promise<string> {
     const { llm, agentMemory, userMemory, eventManager, config } = this.deps
+    const startedAt = Date.now()
     const conversationMemory = new ConversationMemory(this.deps.db)
     const onboarding = new MemberOnboarding(userMemory)
     const userProfileMemory = new UserProfileMemory(this.deps.db, userMemory, agentMemory)
     const internalUserId = await userMemory.resolveUserId(msg.userId)
+    const trace = createTrace(this.deps.reasoning, 'conversation', startedAt)
+    trace('User resolved')
 
     await onProgress?.('Entendiendo lo que quieres lograr...')
 
@@ -45,8 +51,10 @@ export class AgentCore {
       conversationMemory.getRecentTranscript(internalUserId, msg.platform, msg.chatType),
       onboarding.handleMessage(internalUserId, msg),
     ])
+    trace('Loaded agent files, events, transcript, and onboarding state')
 
     const userContext = await userProfileMemory.getPromptContext(internalUserId)
+    trace('Built prompt context from user profile memory')
 
     await onProgress?.('Revisando lo que ya compartimos en la conversación...')
 
@@ -62,6 +70,7 @@ export class AgentCore {
       msg.text,
       eventSignals,
     )
+    trace('Extracted event signals and updated proposal state')
     if (proposalResult) {
       await onProgress?.(
         proposalResult.created
@@ -86,7 +95,8 @@ export class AgentCore {
         role: 'assistant',
         content: directReply,
       })
-      await userProfileMemory.sync(internalUserId)
+      trace('Answered via onboarding fast path')
+      void syncUserProfileInBackground(userProfileMemory, internalUserId, this.deps.reasoning)
       return directReply
     }
 
@@ -112,13 +122,16 @@ export class AgentCore {
       role: 'user',
       content: msg.text,
     })
+    trace('Stored user turn in conversation memory')
 
     const tools = getToolDefinitions()
     const messages: LLMMessage[] = [{ role: 'user', content: msg.text }]
 
     await onProgress?.('Pensando en la mejor siguiente acción...')
 
+    trace('Calling model for initial response')
     let response = await llm.chat(system, messages, tools)
+    trace(`Initial model response received with ${response.toolCalls.length} tool calls`)
     let maxIterations = 5
 
     while (response.toolCalls.length > 0 && maxIterations > 0) {
@@ -131,10 +144,14 @@ export class AgentCore {
 
         let result: string
         try {
+          const toolStartedAt = Date.now()
           result = await executeTool(tc.name, tc.input, {
             eventManager, userMemory,
             sendDm: this.deps.sendDm, sendGroup: this.deps.sendGroup,
+            createGroupTopic: this.deps.createGroupTopic,
+            groupPolicy: this.deps.groupPolicy,
           })
+          trace(`Tool ${tc.name} completed in ${Date.now() - toolStartedAt}ms`)
         } catch (error) {
           result = `Tool error: ${String(error)}`
           this.deps.reasoning.emit_reasoning({
@@ -148,27 +165,30 @@ export class AgentCore {
       }
       messages.push({ role: 'user', content: 'Continue based on the tool results above.' })
       await onProgress?.('Cerrando la mejor respuesta para ti...')
+      trace('Calling model after tool execution')
       response = await llm.chat(system, messages, tools)
+      trace(`Follow-up model response received with ${response.toolCalls.length} tool calls`)
       maxIterations--
     }
+
+    const finalReply = appendFollowUp(
+      maybeAppendProposalNote(response.text, proposalResult),
+      onboardingResult.followUpQuestion,
+    )
 
     await conversationMemory.appendTurn({
       userId: internalUserId,
       platform: msg.platform,
       chatType: msg.chatType,
       role: 'assistant',
-      content: appendFollowUp(
-        maybeAppendProposalNote(response.text, proposalResult),
-        onboardingResult.followUpQuestion,
-      ),
+      content: finalReply,
     })
+    trace('Stored assistant reply in conversation memory')
 
-    await userProfileMemory.sync(internalUserId)
+    void syncUserProfileInBackground(userProfileMemory, internalUserId, this.deps.reasoning)
+    trace('Returning final reply')
 
-    return appendFollowUp(
-      maybeAppendProposalNote(response.text, proposalResult),
-      onboardingResult.followUpQuestion,
-    )
+    return finalReply
   }
 
   async handleAdminQuestion(question: string): Promise<string> {
@@ -192,6 +212,30 @@ ${recentEvents.map((e: any) => `- ${e.title} (${e.type}, ${e.status})`).join('\n
   }
 }
 
+function createTrace(reasoning: ReasoningStream, jobName: string, startedAt: number) {
+  return (message: string) => {
+    reasoning.emit_reasoning({
+      jobName,
+      level: 'detail',
+      message: `${message} (+${Date.now() - startedAt}ms)`,
+    })
+  }
+}
+
+function syncUserProfileInBackground(
+  userProfileMemory: UserProfileMemory,
+  userId: string,
+  reasoning: ReasoningStream,
+) {
+  return userProfileMemory.sync(userId).catch((error) => {
+    reasoning.emit_reasoning({
+      jobName: 'conversation',
+      level: 'detail',
+      message: `Deferred user profile sync failed: ${String(error)}`,
+    })
+  })
+}
+
 function progressMessageForTool(toolName: string): string {
   switch (toolName) {
     case 'propose_event_idea':
@@ -205,6 +249,8 @@ function progressMessageForTool(toolName: string): string {
       return 'Evaluando qué tan bien encaja la propuesta...'
     case 'send_dm':
       return 'Preparando un mensaje personalizado...'
+    case 'create_group_topic':
+      return 'Creando un topic nuevo en Telegram...'
     default:
       return 'Ordenando la mejor siguiente acción...'
   }
@@ -213,16 +259,15 @@ function progressMessageForTool(toolName: string): string {
 function shouldBypassAgentForOnboarding(msg: InboundMessage): boolean {
   if (msg.chatType !== 'dm') return false
   const normalized = msg.text.trim().toLowerCase()
+  return !looksLikeEventPlanningIntent(normalized)
+}
 
-  if (/^(hola+|buenas|hey|hi|hello|que tal|qué tal|como va|cómo va)[!. ]*$/.test(normalized)) {
+function looksLikeEventPlanningIntent(normalized: string): boolean {
+  if (/\b(asado|evento|invitar|invit[aeo]r|comunidad|sábado|sabado|domingo|viernes|cowork|lugar|ubicaci[oó]n|hora|personas|capacidad|reserva|bar|restaurante|restaurant|pm|am|admin|propuesta)\b/.test(normalized)) {
     return true
   }
 
-  if (/\b(digital|digitales|virtual|virtuales|online|remoto|remotos|f[ií]sico|fisico|presencial|presenciales|en persona|cara a cara|fiesta|fiestas|party|parties|asado|bbq|barbacoa|aire libre|outdoor|caminata|parque|salida|cena|dinner|intima|íntima)\b/.test(normalized)) {
-    return true
-  }
-
-  return normalized.split(/\s+/).length >= 4 && normalized.length < 180 && !/\b(asado|evento|invitar|comunidad|sábado|sabado|cowork|lugar|hora|personas)\b/.test(normalized)
+  return /\b(\d{1,2}:\d{2}|\d+\s*(pm|am)|14 de marzo|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(normalized)
 }
 
 function appendFollowUp(response: string, followUpQuestion?: string): string {

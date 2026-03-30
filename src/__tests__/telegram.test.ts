@@ -73,4 +73,21 @@ describe('TelegramBridge', () => {
     resolveSecondStart()
     await secondRun
   })
+
+  it('creates a forum topic through the Telegram Bot API', async () => {
+    const bridge = new TelegramBridge({ botToken: FAKE_TOKEN, groupChatId: '-100123' })
+    const createForumTopic = vi.fn().mockResolvedValue({
+      message_thread_id: 77,
+      name: 'AI Tools',
+    })
+
+    ;(bridge as any).bot = {
+      api: { createForumTopic },
+    }
+
+    const topic = await bridge.createForumTopic('AI Tools')
+    expect(createForumTopic).toHaveBeenCalledWith('-100123', 'AI Tools')
+    expect(topic.messageThreadId).toBe(77)
+    expect(topic.name).toBe('AI Tools')
+  })
 })

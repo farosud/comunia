@@ -5,6 +5,7 @@ import type { AgentMemory } from '../../memory/agent-memory.js'
 import type { ReasoningStream } from '../../reasoning.js'
 import type { Config } from '../../config.js'
 import type { TelegramMemberSync } from '../../members/telegram-sync.js'
+import type { ProductIdeas } from '../../community/product-ideas.js'
 
 export interface JobContext {
   llm: LLMProvider
@@ -17,6 +18,7 @@ export interface JobContext {
   sendGroup: (message: string) => Promise<void>
   db: any
   telegramMemberSync?: TelegramMemberSync
+  productIdeas?: ProductIdeas
   reason: (jobName: string, level: string, message: string, data?: Record<string, unknown>) => void
 }
 

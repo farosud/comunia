@@ -11,6 +11,7 @@ import { createSubgroupAnalysisJob } from './jobs/subgroup-analysis.js'
 import { createProfileEnrichmentJob } from './jobs/profile-enrichment.js'
 import { createTelegramMemberSyncJob } from './jobs/member-sync.js'
 import { createCommunityIdeasJob } from './jobs/community-ideas.js'
+import { createProductIdeasJob } from './jobs/product-ideas.js'
 import type { Config } from '../config.js'
 
 export class Scheduler {
@@ -30,6 +31,7 @@ export class Scheduler {
       createProfileEnrichmentJob(),
       createTelegramMemberSyncJob(config.scheduler.memberSyncCron),
       createCommunityIdeasJob(config.scheduler.communityIdeaCron),
+      createProductIdeasJob(config.scheduler.productIdeaCron),
     ]
   }
 
@@ -52,7 +54,7 @@ export class Scheduler {
       this.tasks.push(task)
       console.log(`Scheduled job: ${job.name} (${job.schedule})`)
 
-      if (job.name === 'community-ideas') {
+      if (job.name === 'community-ideas' || job.name === 'product-ideas') {
         try {
           await job.run({ ...ctx, reason })
         } catch (err) {

@@ -46,18 +46,17 @@
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow">AI community manager for Telegram and WhatsApp</p>
-          <h1>Your community should keep moving even when the admin is offline.</h1>
+          <h1>Chats move fast. Communities need memory.</h1>
           <p class="hero-text">
-            Comunia talks to members, understands what they want, remembers what matters,
-            and turns loose chat ideas into visible proposals on a living dashboard.
+            Comunia helps communities remember what matters, turn loose chat into real plans,
+            and use AI to improve the human experience instead of replacing it.
           </p>
           <div class="hero-install-callout">
             <p class="hero-install-label">Start here</p>
             <div class="hero-install-command">
-              <code>npm install -g comunia</code>
-              <span>then</span>
-              <code>comunia init</code>
+              <code>npx comunia init</code>
             </div>
+            <p class="hero-install-note">No global install required.</p>
           </div>
           <div class="hero-actions">
             <a class="button button-accent" href="#install">Deploy it</a>
@@ -65,8 +64,8 @@
           </div>
           <ul class="hero-points">
             <li>Turns “we should do a barbecue” into a proposal card</li>
-            <li>Keeps a generated memory file per member</li>
-            <li>Works as an operator layer between the chat and the admin</li>
+            <li>Keeps memory so good ideas do not die in the scroll</li>
+            <li>Helps groups get from chat to real rooms</li>
           </ul>
         </div>
 
@@ -230,15 +229,15 @@ Assistant: Ya quedó visible en Propuestas.</pre>
           <h2>Deploy Comunia and make the chat itself operational.</h2>
           <p>
             The product is open source. The landing page lives separately so you can ship it on
-            Vercel while keeping the bot, dashboard, and scheduler in the core app.
+            Vercel while keeping the bot, dashboard, and scheduler in the core app. Run it
+            directly with <code>npx comunia init</code>.
           </p>
         </div>
         <div class="install-panel">
           <div class="terminal-head">
             <span></span><span></span><span></span>
           </div>
-          <pre><code>npm install -g comunia
-comunia init
+          <pre><code>npx comunia init
 
 # connect Telegram or WhatsApp
 # choose your LLM

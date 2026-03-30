@@ -3,10 +3,11 @@ import { communitySettings } from '../db/schema.js'
 
 type Db = any
 
-export type GroupResponseMode = 'admin_only' | 'open'
+export type GroupResponseMode = 'announcements_only' | 'admin_only' | 'open'
 
 export interface GroupInteractionSettings {
   responseMode: GroupResponseMode
+  allowTelegramTopicCreation: boolean
 }
 
 export class GroupPolicy {
@@ -17,19 +18,25 @@ export class GroupPolicy {
     const row = this.db.select().from(communitySettings)
       .where(eq(communitySettings.key, 'group_response_mode'))
       .get()
+    const topicCreationRow = this.db.select().from(communitySettings)
+      .where(eq(communitySettings.key, 'telegram_topic_creation_enabled'))
+      .get()
 
     return {
-      responseMode: row?.value === 'open' ? 'open' : 'admin_only',
+      responseMode: normalizeMode(row?.value),
+      allowTelegramTopicCreation: topicCreationRow?.value === 'true',
     }
   }
 
   async updateSettings(input: Partial<GroupInteractionSettings>): Promise<GroupInteractionSettings> {
     const current = await this.getSettings()
     const next = {
-      responseMode: input.responseMode === 'open' ? 'open' : current.responseMode,
+      responseMode: input.responseMode ? normalizeMode(input.responseMode) : current.responseMode,
+      allowTelegramTopicCreation: input.allowTelegramTopicCreation ?? current.allowTelegramTopicCreation,
     }
 
     this.setSetting('group_response_mode', next.responseMode)
+    this.setSetting('telegram_topic_creation_enabled', next.allowTelegramTopicCreation ? 'true' : 'false')
     return next
   }
 
@@ -41,6 +48,7 @@ export class GroupPolicy {
   }): Promise<boolean> {
     const settings = await this.getSettings()
     if (settings.responseMode === 'open') return true
+    if (settings.responseMode === 'announcements_only') return false
 
     const isAdmin = input.adminIds.includes(input.userId)
     if (!isAdmin) return false
@@ -64,6 +72,7 @@ export class GroupPolicy {
 
   private async ensureDefaults() {
     this.setSetting('group_response_mode', 'admin_only', true)
+    this.setSetting('telegram_topic_creation_enabled', 'false', true)
   }
 
   private setSetting(key: string, value: string, onlyIfMissing = false) {
@@ -87,6 +96,12 @@ export class GroupPolicy {
 
 function introKey(platform: 'telegram' | 'whatsapp', chatId: string) {
   return `group_intro_sent:${platform}:${chatId}`
+}
+
+function normalizeMode(value?: string): GroupResponseMode {
+  if (value === 'open') return 'open'
+  if (value === 'announcements_only') return 'announcements_only'
+  return 'admin_only'
 }
 
 function isExplicitInvocation(text: string): boolean {

@@ -1,6 +1,7 @@
 import type { ToolDefinition } from './providers/types.js'
 import type { EventManager } from '../events/manager.js'
 import type { UserMemory } from '../memory/user-memory.js'
+import type { GroupPolicy } from '../community/group-policy.js'
 
 export function getToolDefinitions(): ToolDefinition[] {
   return [
@@ -51,6 +52,17 @@ export function getToolDefinitions(): ToolDefinition[] {
         type: 'object',
         properties: { message: { type: 'string' } },
         required: ['message'],
+      },
+    },
+    {
+      name: 'create_group_topic',
+      description: 'Create a new Telegram forum topic in the community group when topic creation is enabled and the bot is an admin',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Short topic title' },
+        },
+        required: ['name'],
       },
     },
     {
@@ -122,6 +134,8 @@ interface ToolContext {
   userMemory: UserMemory
   sendDm: (userId: string, message: string) => Promise<void>
   sendGroup: (message: string) => Promise<void>
+  createGroupTopic?: (name: string) => Promise<{ messageThreadId: number; name: string }>
+  groupPolicy?: GroupPolicy
 }
 
 export async function executeTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
@@ -152,6 +166,17 @@ export async function executeTool(name: string, input: Record<string, unknown>, 
     case 'send_group': {
       await ctx.sendGroup(input.message as string)
       return `Group message sent`
+    }
+    case 'create_group_topic': {
+      const settings = await ctx.groupPolicy?.getSettings()
+      if (!settings?.allowTelegramTopicCreation) {
+        return 'Group topic creation is disabled in dashboard settings.'
+      }
+      if (!ctx.createGroupTopic) {
+        return 'Telegram topic creation is not available in this runtime.'
+      }
+      const topic = await ctx.createGroupTopic(input.name as string)
+      return `Created Telegram topic "${topic.name}" (thread ${topic.messageThreadId}).`
     }
     case 'update_user_memory': {
       await ctx.userMemory.set(

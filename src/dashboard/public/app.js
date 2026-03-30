@@ -85,7 +85,7 @@
   });
 
   // ── Navigation ──
-  const sections = ['overview', 'members', 'events', 'reasoning', 'agent', 'import', 'settings'];
+  const sections = ['overview', 'members', 'events', 'product-ideas', 'reasoning', 'agent', 'import', 'settings'];
 
   function navigateToHash() {
     var hash = (location.hash || '#overview').slice(1);
@@ -134,6 +134,7 @@
       overview: loadOverview,
       members: loadMembers,
       events: loadEvents,
+      'product-ideas': loadProductIdeas,
       reasoning: loadReasoning,
       agent: loadAgent,
       import: loadImport,
@@ -203,11 +204,17 @@
     return members.map(function (m) {
       var initials = (m.name || '?').split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
       var statusClass = m.status === 'active' ? 'active' : 'inactive';
-      return '<div class="card member-card">' +
-        '<div class="member-avatar">' + esc(initials) + '</div>' +
-        '<div class="member-info">' +
-          '<h3>' + esc(m.name) + (m.preferredName ? ' (' + esc(m.preferredName) + ')' : '') +
-            ' <span class="member-status ' + statusClass + '">' + esc(m.status) + '</span></h3>' +
+      return '<div class="card member-card member-accordion" data-member-id="' + esc(m.id) + '">' +
+        '<button class="member-accordion-toggle" type="button" data-member-toggle="' + esc(m.id) + '" aria-expanded="false">' +
+          '<span class="member-avatar">' + esc(initials) + '</span>' +
+          '<span class="member-info">' +
+            '<span class="member-title-row">' + esc(m.name) + (m.preferredName ? ' (' + esc(m.preferredName) + ')' : '') +
+              ' <span class="member-status ' + statusClass + '">' + esc(m.status) + '</span></span>' +
+            '<span class="member-preview">' + esc(memberPreview(m.profile)) + '</span>' +
+          '</span>' +
+          '<span class="member-accordion-icon" aria-hidden="true">+</span>' +
+        '</button>' +
+        '<div class="member-accordion-panel hidden" data-member-panel="' + esc(m.id) + '">' +
           '<div class="profile-summary">' + esc(m.profile || 'No profile data yet.') + '</div>' +
           '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">' +
             '<button class="secondary-btn member-memory-btn" data-user-id="' + esc(m.id) + '">View memory.md</button>' +
@@ -226,6 +233,20 @@
     if (!list) return;
 
     list.addEventListener('click', function (event) {
+      var toggle = event.target.closest('.member-accordion-toggle');
+      if (toggle) {
+        var userIdForToggle = toggle.getAttribute('data-member-toggle');
+        var accordion = toggle.closest('.member-accordion');
+        var memberPanel = $('[data-member-panel="' + userIdForToggle + '"]', list);
+        if (!accordion || !memberPanel) return;
+
+        var expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        memberPanel.classList.toggle('hidden', expanded);
+        accordion.classList.toggle('is-open', !expanded);
+        return;
+      }
+
       var button = event.target.closest('.member-memory-btn');
       if (!button) return;
 
@@ -369,6 +390,118 @@
           card.innerHTML += '<p style="color:var(--danger);font-weight:600;margin-top:0.5rem">Rejected</p>';
         });
       }
+    });
+  }
+
+  // ── Product Ideas ──
+  function loadProductIdeas(el) {
+    el.innerHTML =
+      '<h1 class="section-title">Product Ideas</h1>' +
+      '<div id="product-ideas-root"><div style="padding:2rem;text-align:center"><span class="spinner"></span></div></div>';
+
+    apiJSON('/product-ideas').then(function (state) {
+      var summary = state.importSummary || { imports: 0, totalMessages: 0, totalMembers: 0 };
+      var html =
+        '<div class="card" style="margin-bottom:1rem">' +
+          '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">' +
+            '<div>' +
+              '<h2 style="font-size:1.05rem;margin-bottom:0.45rem">What the community might want built next</h2>' +
+              '<p style="color:var(--text-muted);max-width:62ch">This stream turns imported community signals into software ideas worth exploring. New work is seeded after import and one additional product suggestion is proposed every day.</p>' +
+            '</div>' +
+            '<div class="notes" style="min-width:220px">' +
+              '<strong>' + esc(String(summary.totalMembers || 0)) + '</strong> members · ' +
+              '<strong>' + esc(String(summary.totalMessages || 0)) + '</strong> imported messages' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      if (!state.hasImportedContext) {
+        html +=
+          '<div class="empty-state">' +
+            '<p>Import a Telegram, WhatsApp, CSV, or text export first. Once Comunia has real member signals, it will seed three product ideas here.</p>' +
+          '</div>';
+        $('#product-ideas-root').innerHTML = html;
+        return;
+      }
+
+      if (!state.ideas || !state.ideas.length) {
+        html += '<div class="empty-state"><p>No product ideas yet. Try this section again in a moment after your import finishes.</p></div>';
+        $('#product-ideas-root').innerHTML = html;
+        return;
+      }
+
+      html += '<div class="product-idea-grid">' + state.ideas.map(function (idea) {
+        return renderProductIdeaCard(idea, state.daioUrl || 'https://daio.md/');
+      }).join('') + '</div>';
+
+      $('#product-ideas-root').innerHTML = html;
+      setupProductIdeaActions($('#product-ideas-root'));
+    }).catch(function () {
+      $('#product-ideas-root').innerHTML = '<div class="empty-state"><p>Failed to load product ideas.</p></div>';
+    });
+  }
+
+  function renderProductIdeaCard(idea, daioUrl) {
+    return '<div class="card product-idea-card" data-product-idea="' + esc(idea.id) + '">' +
+      '<div class="product-idea-head">' +
+        '<div>' +
+          '<div class="product-idea-kicker">' + esc(idea.source === 'seed' ? 'starter idea' : 'daily product signal') + '</div>' +
+          '<h3>' + esc(idea.title) + '</h3>' +
+        '</div>' +
+        '<div class="meta">' + esc(formatRelativeDate(idea.createdAt)) + '</div>' +
+      '</div>' +
+      '<p class="product-idea-summary">' + esc(idea.summary || '') + '</p>' +
+      (idea.targetMembers ? '<div class="notes"><strong>Best for:</strong> ' + esc(idea.targetMembers) + '</div>' : '') +
+      (idea.rationale ? '<div class="notes"><strong>Why now:</strong> ' + esc(idea.rationale) + '</div>' : '') +
+      '<div class="product-idea-actions">' +
+        '<button class="btn btn-primary product-build-btn" data-idea-id="' + esc(idea.id) + '">Let&apos;s build this</button>' +
+        '<a class="btn btn-outline" href="' + esc(daioUrl) + '" target="_blank" rel="noreferrer">Build it for me</a>' +
+      '</div>' +
+      '<div class="product-daio-note">Powered by <a href="' + esc(daioUrl) + '" target="_blank" rel="noreferrer">daio</a></div>' +
+      '<div class="product-prompt-panel hidden" data-product-prompt="' + esc(idea.id) + '">' +
+        '<div class="notes" style="margin-bottom:0.6rem">Copy this prompt into your local coding setup to get an MVP moving quickly.</div>' +
+        '<pre class="product-prompt-pre">' + esc(idea.buildPrompt || '') + '</pre>' +
+        '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-top:0.75rem">' +
+          '<button class="secondary-btn product-copy-btn" data-copy-id="' + esc(idea.id) + '">Copy prompt</button>' +
+          '<span class="save-msg" data-copy-msg="' + esc(idea.id) + '"></span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function setupProductIdeaActions(container) {
+    container.addEventListener('click', function (event) {
+      var buildButton = event.target.closest('.product-build-btn');
+      if (buildButton) {
+        var ideaId = buildButton.getAttribute('data-idea-id');
+        var panel = $('[data-product-prompt="' + ideaId + '"]', container);
+        if (!panel) return;
+        var isHidden = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden');
+        buildButton.textContent = isHidden ? 'Hide build prompt' : 'Let\'s build this';
+        return;
+      }
+
+      var copyButton = event.target.closest('.product-copy-btn');
+      if (!copyButton) return;
+
+      var copyId = copyButton.getAttribute('data-copy-id');
+      var promptPanel = $('[data-product-prompt="' + copyId + '"]', container);
+      var message = $('[data-copy-msg="' + copyId + '"]', container);
+      if (!promptPanel) return;
+
+      var pre = $('.product-prompt-pre', promptPanel);
+      var text = pre ? pre.textContent || '' : '';
+      if (!text) return;
+
+      navigator.clipboard.writeText(text).then(function () {
+        if (message) {
+          message.textContent = 'Copied';
+          setTimeout(function () { message.textContent = ''; }, 1800);
+        }
+      }).catch(function () {
+        if (message) message.textContent = 'Copy failed';
+      });
     });
   }
 
@@ -679,9 +812,14 @@
         '<div style="display:grid;gap:0.75rem">' +
           '<label>Group response mode<br>' +
             '<select id="group-response-mode" style="width:100%;margin-top:0.35rem">' +
+              '<option value="announcements_only">Announcements only</option>' +
               '<option value="admin_only">Admin only</option>' +
               '<option value="open">Open</option>' +
             '</select>' +
+          '</label>' +
+          '<label style="display:flex;gap:0.6rem;align-items:flex-start">' +
+            '<input id="allow-telegram-topic-creation" type="checkbox" style="width:auto;margin-top:0.2rem">' +
+            '<span><strong>Allow Telegram topic creation</strong><br><span style="color:var(--text-muted)">If the bot is an admin in a Telegram forum group, it can create new topics when explicitly asked.</span></span>' +
           '</label>' +
           '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">' +
             '<button class="btn btn-primary" id="save-group-settings">Save group behavior</button>' +
@@ -715,6 +853,7 @@
 
     apiJSON('/community/interaction-settings').then(function (settings) {
       $('#group-response-mode').value = settings.responseMode || 'admin_only';
+      $('#allow-telegram-topic-creation').checked = settings.allowTelegramTopicCreation === true;
     }).catch(function () {
       $('#group-settings-msg').textContent = 'Failed to load group settings';
     });
@@ -732,15 +871,23 @@
             botUrl: $('#public-bot-url').value.trim(),
           }),
         })
-          .then(function (r) { return r.json(); })
+          .then(function (r) {
+            return r.text().then(function (text) {
+              var data = text ? safeJSONParse(text) : {};
+              if (!r.ok) {
+                throw new Error((data && data.error) || ('Request failed (' + r.status + ')'));
+              }
+              return data;
+            });
+          })
           .then(function (data) {
             $('#public-passcode').value = data.passcode || '';
             $('#public-bot-url').value = data.botUrl || '';
             $('#public-settings-msg').textContent = 'Saved';
             setTimeout(function () { $('#public-settings-msg').textContent = ''; }, 2000);
           })
-          .catch(function () {
-            $('#public-settings-msg').textContent = 'Save failed';
+          .catch(function (error) {
+            $('#public-settings-msg').textContent = error && error.message ? error.message : 'Save failed';
           })
           .finally(function () {
             saveBtn.disabled = false;
@@ -759,16 +906,26 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             responseMode: $('#group-response-mode').value,
+            allowTelegramTopicCreation: $('#allow-telegram-topic-creation').checked,
           }),
         })
-          .then(function (r) { return r.json(); })
+          .then(function (r) {
+            return r.text().then(function (text) {
+              var data = text ? safeJSONParse(text) : {};
+              if (!r.ok) {
+                throw new Error((data && data.error) || ('Request failed (' + r.status + ')'));
+              }
+              return data;
+            });
+          })
           .then(function (data) {
             $('#group-response-mode').value = data.responseMode || 'admin_only';
+            $('#allow-telegram-topic-creation').checked = data.allowTelegramTopicCreation === true;
             $('#group-settings-msg').textContent = 'Saved';
             setTimeout(function () { $('#group-settings-msg').textContent = ''; }, 2000);
           })
-          .catch(function () {
-            $('#group-settings-msg').textContent = 'Save failed';
+          .catch(function (error) {
+            $('#group-settings-msg').textContent = error && error.message ? error.message : 'Save failed';
           })
           .finally(function () {
             groupSaveBtn.disabled = false;
@@ -866,6 +1023,27 @@
     var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function safeJSONParse(str) {
+    try {
+      return JSON.parse(str);
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function formatRelativeDate(iso) {
+    if (!iso) return '';
+    var date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    return date.toLocaleString();
+  }
+
+  function memberPreview(profile) {
+    var text = String(profile || 'No profile data yet.').replace(/\s+/g, ' ').trim();
+    if (text.length <= 96) return text;
+    return text.slice(0, 93) + '...';
   }
 
   // ── Init ──

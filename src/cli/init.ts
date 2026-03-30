@@ -5,6 +5,7 @@ import path from 'path'
 import { resolveFromModule } from '../runtime-paths.js'
 import { CommunityWorkspaceStore } from './community-workspaces.js'
 import { requestCloudPublishCredential } from './cloud-register.js'
+import { suggestDashboardPort } from './dashboard-port.js'
 
 interface OpenRouterModelOption {
   value: string
@@ -114,85 +115,52 @@ export async function runInit() {
     location = loc
   }
 
-  const publicPortalMode = await p.select({
-    message: 'How should the public community portal be delivered?',
-    options: [
-      { value: 'self_hosted', label: 'Self-hosted only', hint: 'You deploy the full app and serve /community yourself' },
-      { value: 'cloud', label: 'Publish to Comunia Cloud', hint: 'Use comunia.chat/<slug> for the public portal' },
-      { value: 'both', label: 'Both', hint: 'Keep self-hosted and publish a cloud version too' },
-    ],
-  })
-  if (p.isCancel(publicPortalMode)) return process.exit(0)
-
-  if (publicPortalMode === 'cloud' || publicPortalMode === 'both') {
-    p.note(
-      'Cloud commands:\n' +
-      '• comunia start → starts your local/private community runtime and keeps the cloud portal synced\n' +
-      '• comunia cloud-register → claims your slug later if you skip that step now\n' +
-      '• comunia publish → forces an immediate cloud publish if you want to push a refresh manually',
-      'Comunia Cloud'
-    )
-  }
-
+  const publicPortalMode = 'both'
   let cloudSlug = ''
-  let cloudPublishUrl = 'https://cloud.comunia.chat'
+  const cloudPublishUrl = 'https://cloud.comunia.chat'
   let cloudPublishToken = ''
+  let cloudPublicUrl = ''
 
-  if (publicPortalMode === 'cloud' || publicPortalMode === 'both') {
-    const slug = await p.text({
-      message: 'Public slug for Comunia Cloud:',
-      placeholder: 'crecimiento-ba',
-      validate: (value) => /^[a-z0-9-]+$/.test(value || '') ? undefined : 'Use lowercase letters, numbers, and hyphens only',
+  p.note(
+    'Every new community now gets a live public portal by default.\n' +
+    'Your admin dashboard stays local/private, and Comunia also publishes a community page on Comunia Cloud.\n\n' +
+    'Cloud commands:\n' +
+    '• comunia start → starts your local/private community runtime and keeps the cloud portal synced\n' +
+    '• comunia cloud-register → re-claims or repairs cloud registration later if needed\n' +
+    '• comunia publish → forces an immediate cloud refresh manually',
+    'Comunia Cloud',
+  )
+
+  const slug = await p.text({
+    message: 'Public slug for Comunia Cloud:',
+    defaultValue: slugify(communityName),
+    placeholder: 'crecimiento-ba',
+    validate: (value) => /^[a-z0-9-]+$/.test(value || '') ? undefined : 'Use lowercase letters, numbers, and hyphens only',
+  })
+  if (p.isCancel(slug)) return process.exit(0)
+  cloudSlug = slug.trim()
+
+  try {
+    const registration = await requestCloudPublishCredential({
+      publishUrl: cloudPublishUrl,
+      slug: cloudSlug,
+      communityName: communityName.trim(),
     })
-    if (p.isCancel(slug)) return process.exit(0)
-    cloudSlug = slug.trim()
-
-    const publishUrl = await p.text({
-      message: 'Comunia Cloud URL:',
-      defaultValue: 'https://cloud.comunia.chat',
-      validate: (value) => value && /^https?:\/\//.test(value) ? undefined : 'Use a full URL like https://cloud.comunia.chat',
+    cloudPublishToken = registration.token
+    cloudPublicUrl = registration.publicUrl || `${cloudPublishUrl.replace(/\/$/, '')}/${registration.slug}`
+    p.note(
+      `Slug claimed: ${registration.slug}\nPublic URL: ${cloudPublicUrl}`,
+      'Comunia Cloud Registration',
+    )
+  } catch (error) {
+    p.log.warn(String(error))
+    const publishToken = await p.text({
+      message: 'Could not request a token automatically. Paste an existing Comunia Cloud publish token:',
+      defaultValue: '',
     })
-    if (p.isCancel(publishUrl)) return process.exit(0)
-    cloudPublishUrl = publishUrl.trim()
-
-    const tokenMode = await p.select({
-      message: 'How do you want to get the Comunia Cloud publish token?',
-      options: [
-        { value: 'request', label: 'Request one from Comunia Cloud now', hint: 'Claims the slug if it is still available' },
-        { value: 'manual', label: 'I already have a token', hint: 'Paste a token someone already gave you' },
-      ],
-    })
-    if (p.isCancel(tokenMode)) return process.exit(0)
-
-    if (tokenMode === 'request') {
-      try {
-        const registration = await requestCloudPublishCredential({
-          publishUrl: cloudPublishUrl,
-          slug: cloudSlug,
-          communityName: communityName.trim(),
-        })
-        cloudPublishToken = registration.token
-        p.note(
-          `Slug claimed: ${registration.slug}\nPublic URL: ${registration.publicUrl || `${cloudPublishUrl.replace(/\/$/, '')}/${registration.slug}`}`,
-          'Comunia Cloud Registration',
-        )
-      } catch (error) {
-        p.log.warn(String(error))
-        const publishToken = await p.text({
-          message: 'Could not request a token automatically. Paste an existing Comunia Cloud publish token:',
-          defaultValue: '',
-        })
-        if (p.isCancel(publishToken)) return process.exit(0)
-        cloudPublishToken = publishToken.trim()
-      }
-    } else {
-      const publishToken = await p.text({
-        message: 'Comunia Cloud publish token:',
-        defaultValue: '',
-      })
-      if (p.isCancel(publishToken)) return process.exit(0)
-      cloudPublishToken = publishToken.trim()
-    }
+    if (p.isCancel(publishToken)) return process.exit(0)
+    cloudPublishToken = publishToken.trim()
+    cloudPublicUrl = `${cloudPublishUrl.replace(/\/$/, '')}/${cloudSlug}`
   }
 
   // 4. LLM provider
@@ -255,6 +223,7 @@ export async function runInit() {
   // 5. Dashboard secret
   const dashboardSecret = `comunia-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const publicDashboardPasscode = `community-${Math.random().toString(36).slice(2, 10)}`
+  const dashboardPort = await suggestDashboardPort(process.cwd())
 
   // 6. Write .env
   let llmEnvLines = `LLM_PROVIDER=${llmProvider}\n`
@@ -290,7 +259,7 @@ ADMIN_USER_IDS=
 
 # === Dashboard ===
 DASHBOARD_HOST=127.0.0.1
-DASHBOARD_PORT=3000
+DASHBOARD_PORT=${dashboardPort}
 DASHBOARD_SECRET=${dashboardSecret}
 
 # === Database ===
@@ -319,6 +288,7 @@ EVENT_IDEATION_CRON=0 10 * * 1
 SUBGROUP_ANALYSIS_CRON=0 4 * * 0
 MEMBER_SYNC_CRON=*/15 * * * *
 COMMUNITY_IDEA_CRON=*/15 * * * *
+PRODUCT_IDEA_CRON=0 10 * * *
 
 # === Limits ===
 LLM_MAX_CONCURRENT=10
@@ -365,16 +335,18 @@ LLM_MAX_PER_MINUTE=30
 
   p.note(
     `Dashboard secret: ${dashboardSecret}\n` +
-    `Dashboard URL: http://localhost:3000\n\n` +
+    `Dashboard URL: http://localhost:${dashboardPort}\n\n` +
     `Public community passcode: ${publicDashboardPasscode}\n` +
-    `Public community URL: http://localhost:3000/community\n\n` +
-    `${cloudSlug ? `Comunia Cloud URL: ${cloudPublishUrl.replace(/\/$/, '')}/${cloudSlug}\n\n` : ''}` +
+    `Public community URL: http://localhost:${dashboardPort}/community\n\n` +
+    `Comunia Cloud URL: ${cloudPublicUrl || `${cloudPublishUrl.replace(/\/$/, '')}/${cloudSlug}`}\n\n` +
     'Next steps:\n' +
     '1. comunia will start automatically now\n' +
     '2. Add the bot to your group chat\n' +
-    '3. Open the dashboard to manage events\n' +
-    '4. Later, run "comunia start" to bring everything back up\n' +
-    `${cloudSlug ? '5. "comunia cloud-register" claims your cloud slug later if needed\n6. "comunia publish" forces a manual refresh, but normal updates sync automatically\n' : ''}`,
+    '3. Share your Comunia Cloud URL with the community when you are ready\n' +
+    '4. Open the dashboard to manage events\n' +
+    '5. Later, run "comunia start" to bring everything back up\n' +
+    '6. "comunia cloud-register" repairs or re-claims cloud registration later if needed\n' +
+    '7. "comunia publish" forces a manual refresh, but normal updates sync automatically\n',
     'Setup Complete!'
   )
 
@@ -382,6 +354,17 @@ LLM_MAX_PER_MINUTE=30
 
   const { startApp } = await import('../index.js')
   await startApp()
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
 }
 
 async function fetchTopOpenRouterModels(): Promise<OpenRouterModelOption[]> {

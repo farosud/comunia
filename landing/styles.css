@@ -229,6 +229,13 @@ h2 {
   font-size: 0.96rem;
 }
 
+.hero-install-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
 .hero-actions,
 .install-actions {
   display: flex;

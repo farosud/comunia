@@ -1,0 +1,6 @@
+{"type":"server-started","port":56357,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:56357","screen_dir":"/Users/emilianovelazquez/comunia/.superpowers/brainstorm/77784-1773335150"}
+{"type":"screen-added","file":"/Users/emilianovelazquez/comunia/.superpowers/brainstorm/77784-1773335150/visual-tone.html"}
+{"source":"user-event","type":"click","text":"comunia\n      BRINGING PEOPLE TOGETHER\n      \n        \n        \n        \n      \n    \n    \n      B — Warm Editorial\n      Cream/warm backgrounds, serif accents, soft earth tones. Community-first, human warmth. Think: Notion, Cal.com, Are.na.","choice":"b","id":null,"timestamp":1773335687301}
+{"type":"screen-added","file":"/Users/emilianovelazquez/comunia/.superpowers/brainstorm/77784-1773335150/waiting.html"}
+{"type":"screen-added","file":"/Users/emilianovelazquez/comunia/.superpowers/brainstorm/77784-1773335150/storyboard.html"}
+{"type":"server-stopped","reason":"idle timeout"}

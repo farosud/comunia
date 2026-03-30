@@ -23,8 +23,8 @@ export class UserProfileMemory {
   }
 
   async getPromptContext(userId: string): Promise<string> {
-    const { content } = await this.sync(userId)
-    return content
+    const resolvedUserId = await this.userMemory.resolveUserId(userId)
+    return this.render(resolvedUserId)
   }
 
   private async render(userId: string): Promise<string> {

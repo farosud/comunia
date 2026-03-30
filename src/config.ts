@@ -49,6 +49,7 @@ const configSchema = z.object({
     subgroupAnalysisCron: z.string().default('0 4 * * 0'),
     memberSyncCron: z.string().default('*/15 * * * *'),
     communityIdeaCron: z.string().default('*/15 * * * *'),
+    productIdeaCron: z.string().default('0 10 * * *'),
   }),
   dashboard: z.object({
     host: z.string().default('127.0.0.1'),
@@ -117,6 +118,7 @@ export function loadConfig(): Config {
       subgroupAnalysisCron: process.env.SUBGROUP_ANALYSIS_CRON,
       memberSyncCron: process.env.MEMBER_SYNC_CRON,
       communityIdeaCron: process.env.COMMUNITY_IDEA_CRON,
+      productIdeaCron: process.env.PRODUCT_IDEA_CRON,
     },
     dashboard: {
       host: process.env.DASHBOARD_HOST,

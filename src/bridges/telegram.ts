@@ -25,6 +25,11 @@ export interface TelegramMemberProfile {
   status?: string
 }
 
+export interface TelegramForumTopic {
+  messageThreadId: number
+  name: string
+}
+
 export class TelegramBridge implements Bridge {
   platform = 'telegram' as const
   private bot: Bot
@@ -236,6 +241,14 @@ export class TelegramBridge implements Bridge {
 
   async getChatMember(chatId: string, userId: number): Promise<any> {
     return this.bot.api.getChatMember(chatId, userId)
+  }
+
+  async createForumTopic(name: string, chatId = this.requireGroupChatId()): Promise<TelegramForumTopic> {
+    const topic = await this.bot.api.createForumTopic(chatId, name)
+    return {
+      messageThreadId: topic.message_thread_id,
+      name: topic.name,
+    }
   }
 
   private normalizeChat(chat: { id: number; type: string; title?: string }): TelegramChatInfo {

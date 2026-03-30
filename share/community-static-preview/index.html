@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comunia Community Preview</title>
+    <meta
+      name="description"
+      content="A static preview of Comunia's public community portal, showing how chat signals become memory, events, and visible community momentum."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f4f1e9;
+        --panel: rgba(255, 252, 245, 0.9);
+        --panel-solid: #fffdf8;
+        --ink: #18201c;
+        --muted: #61706b;
+        --line: rgba(24, 32, 28, 0.1);
+        --accent: #175f4d;
+        --accent-soft: #dcefe8;
+        --accent-strong: #0f4739;
+        --warm: #c47e3a;
+        --warm-soft: rgba(196, 126, 58, 0.12);
+        --shadow: 0 24px 64px rgba(15, 26, 23, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(23, 95, 77, 0.16), transparent 26%),
+          radial-gradient(circle at top right, rgba(196, 126, 58, 0.14), transparent 24%),
+          linear-gradient(180deg, #fcfaf4 0%, var(--bg) 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.06;
+        background-image:
+          linear-gradient(rgba(23, 32, 28, 0.22) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(23, 32, 28, 0.22) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: radial-gradient(circle at center, black 28%, transparent 80%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 1.25rem 0 3rem;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.1rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 250, 242, 0.78);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .topbar-copy {
+        display: grid;
+        gap: 0.2rem;
+      }
+
+      .eyebrow,
+      .panel-kicker,
+      .pill-label {
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: var(--accent);
+      }
+
+      .topbar strong {
+        font-size: 0.97rem;
+      }
+
+      .topbar p,
+      .subtitle,
+      .panel-note,
+      .meta,
+      .idea-meta,
+      .member-note,
+      .section-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .topbar-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+
+      .button,
+      .vote-btn {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.82rem 1.15rem;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+      }
+
+      .button:hover,
+      .vote-btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .button-primary,
+      .vote-btn.active {
+        background: var(--accent);
+        color: #f7fffc;
+        box-shadow: 0 14px 30px rgba(23, 95, 77, 0.22);
+      }
+
+      .button-secondary,
+      .vote-btn {
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .hero-copy,
+      .hero-stage,
+      .community-panel,
+      .info-band {
+        border: 1px solid var(--line);
+        border-radius: 30px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .hero-copy {
+        padding: 1.6rem;
+      }
+
+      .hero-copy h1,
+      .community-name,
+      .panel-heading h2,
+      .section-title {
+        margin: 0;
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 700;
+      }
+
+      .hero-copy h1 {
+        font-size: clamp(2.7rem, 7vw, 5rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-text {
+        margin: 1rem 0 0;
+        max-width: 44rem;
+        font-size: 1.08rem;
+        line-height: 1.75;
+        color: #33413d;
+      }
+
+      .hero-pills {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin: 1.25rem 0 1.15rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(23, 95, 77, 0.15);
+        background: rgba(255, 255, 255, 0.6);
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .pill-dot {
+        width: 0.52rem;
+        height: 0.52rem;
+        border-radius: 999px;
+        background: var(--warm);
+        box-shadow: 0 0 0 0.2rem var(--warm-soft);
+      }
+
+      .hero-points {
+        display: grid;
+        gap: 0.7rem;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .hero-points li {
+        display: grid;
+        grid-template-columns: 1.1rem 1fr;
+        gap: 0.7rem;
+        align-items: start;
+        color: #33413d;
+      }
+
+      .hero-points li::before {
+        content: "•";
+        color: var(--warm);
+        font-size: 1.15rem;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        margin-top: 1.2rem;
+      }
+
+      .hero-stage {
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .stage-card {
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+        overflow: hidden;
+      }
+
+      .stage-bar {
+        display: flex;
+        gap: 0.4rem;
+        padding: 0.8rem 0.9rem 0;
+      }
+
+      .stage-bar span {
+        width: 0.62rem;
+        height: 0.62rem;
+        border-radius: 999px;
+        background: rgba(23, 32, 28, 0.14);
+      }
+
+      .chat-feed {
+        display: grid;
+        gap: 0.65rem;
+        padding: 0.85rem 0.9rem 1rem;
+      }
+
+      .chat-line {
+        padding: 0.7rem 0.8rem;
+        border-radius: 18px;
+        font-size: 0.95rem;
+        line-height: 1.45;
+      }
+
+      .chat-user {
+        background: rgba(196, 126, 58, 0.11);
+      }
+
+      .chat-agent {
+        background: rgba(23, 95, 77, 0.11);
+      }
+
+      .mini-heading {
+        padding: 1rem 1rem 0;
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: var(--muted);
+      }
+
+      .proposal-card {
+        margin: 0.8rem 1rem 1rem;
+        padding: 1rem;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #fffef9 0%, #f7f3ea 100%);
+        border: 1px solid rgba(24, 32, 28, 0.08);
+      }
+
+      .proposal-card h3 {
+        margin: 0.3rem 0 0.85rem;
+        font-size: 1.2rem;
+      }
+
+      .proposal-kicker {
+        margin: 0;
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .proposal-card dl {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+      }
+
+      .proposal-card dt {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .proposal-card dd {
+        margin: 0.2rem 0 0;
+        font-weight: 700;
+      }
+
+      .pulse-note {
+        padding: 0 1rem 1rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .info-band {
+        padding: 1rem 1.15rem;
+        margin-bottom: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.8rem;
+      }
+
+      .info-item {
+        padding: 0.9rem 1rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(24, 32, 28, 0.07);
+      }
+
+      .info-item strong {
+        display: block;
+        font-size: 1.15rem;
+        margin-bottom: 0.2rem;
+      }
+
+      .community-app {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .community-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: end;
+        padding: 0.5rem 0 0.2rem;
+      }
+
+      .community-name {
+        font-size: clamp(2.4rem, 5vw, 4.4rem);
+      }
+
+      .community-layout {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .community-panel {
+        padding: 1.35rem;
+      }
+
+      .full-span {
+        grid-column: 1 / -1;
+      }
+
+      .panel-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1rem;
+      }
+
+      .stack,
+      .member-grid,
+      .idea-stream {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .event-card,
+      .member-card,
+      .idea-card {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--panel-solid);
+      }
+
+      .event-card,
+      .idea-card {
+        padding: 1rem;
+      }
+
+      .event-card h3,
+      .idea-card h3 {
+        margin: 0 0 0.35rem;
+        font-size: 1.16rem;
+      }
+
+      .meta {
+        font-size: 0.94rem;
+      }
+
+      .member-grid {
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      }
+
+      .member-card {
+        padding: 0.95rem;
+      }
+
+      .member-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        align-items: start;
+      }
+
+      .member-name {
+        margin: 0;
+        font-weight: 800;
+        font-size: 1rem;
+      }
+
+      .member-status {
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .member-note {
+        margin-top: 0.6rem;
+        font-size: 0.93rem;
+      }
+
+      .idea-card {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .idea-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .idea-format {
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .idea-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .vote-row {
+        display: flex;
+        gap: 0.55rem;
+      }
+
+      .vote-count {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .footer-note {
+        margin-top: 1rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 960px) {
+        .hero,
+        .community-layout,
+        .info-band {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 780px) {
+        .community-hero,
+        .panel-heading,
+        .idea-actions,
+        .topbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .proposal-card dl {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div class="topbar-copy">
+          <p class="eyebrow">Static Preview</p>
+          <strong>Shareable mock of Comunia’s public community portal</strong>
+          <p>This version is self-contained and shows how the product feels without requiring a live backend.</p>
+        </div>
+        <div class="topbar-actions">
+          <a class="button button-secondary" href="https://github.com/farosud/comunia" target="_blank" rel="noreferrer">View GitHub</a>
+          <a class="button button-primary" href="https://comunia.chat" target="_blank" rel="noreferrer">Visit Website</a>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Comunia Public Portal</p>
+          <h1>From chat noise to real plans.</h1>
+          <p class="hero-text">
+            This preview shows the layer Comunia adds between conversation and coordination:
+            community memory, visible proposals, member context, and the early signals that help
+            real-world gatherings actually happen.
+          </p>
+          <div class="hero-pills">
+            <div class="pill"><span class="pill-dot"></span> Static demo</div>
+            <div class="pill"><span class="pill-dot"></span> Telegram + WhatsApp</div>
+            <div class="pill"><span class="pill-dot"></span> Memory + events + ideas</div>
+          </div>
+          <ul class="hero-points">
+            <li>Turns “we should do dinner next week” into visible community momentum</li>
+            <li>Keeps useful memory on members instead of letting context die in the scroll</li>
+            <li>Uses AI to improve the human experience, not replace it</li>
+          </ul>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#portal">See the portal</a>
+            <a class="button button-secondary" href="https://github.com/farosud/comunia" target="_blank" rel="noreferrer">Run it yourself</a>
+          </div>
+        </div>
+
+        <div class="hero-stage">
+          <div class="stage-card">
+            <div class="stage-bar"><span></span><span></span><span></span></div>
+            <div class="chat-feed">
+              <div class="chat-line chat-user">Mora: we should do a founder dinner next Thursday in Palermo</div>
+              <div class="chat-line chat-agent">Comunia: detected a possible dinner plan. Saving it as a proposal for review.</div>
+              <div class="chat-line chat-user">Ivo: I’m in if it stays small, 8-10 people max</div>
+              <div class="chat-line chat-agent">Comunia: noted. Preference added and proposal updated with dinner size.</div>
+            </div>
+          </div>
+
+          <div class="stage-card">
+            <div class="mini-heading">Dashboard · Proposal surfaced from chat</div>
+            <div class="proposal-card">
+              <p class="proposal-kicker">Proposed by Mora</p>
+              <h3>Founder dinner in Palermo</h3>
+              <dl>
+                <div>
+                  <dt>Date</dt>
+                  <dd>Thursday · 20:00</dd>
+                </div>
+                <div>
+                  <dt>Format</dt>
+                  <dd>Small dinner</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>Draft</dd>
+                </div>
+              </dl>
+            </div>
+            <p class="pulse-note">The point is not more AI chatter. The point is helping communities move from signal to action.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="info-band">
+        <div class="info-item">
+          <p class="pill-label">Why it exists</p>
+          <strong>Chats forget</strong>
+          <p class="section-copy">Communities often have energy, but not enough memory or follow-through to turn that energy into actual plans.</p>
+        </div>
+        <div class="info-item">
+          <p class="pill-label">What it adds</p>
+          <strong>Visible coordination</strong>
+          <p class="section-copy">Events, people, and ideas become legible instead of staying trapped in a fast-moving thread.</p>
+        </div>
+        <div class="info-item">
+          <p class="pill-label">What matters</p>
+          <strong>Real rooms</strong>
+          <p class="section-copy">The more synthetic the internet gets, the more valuable real-world gatherings become.</p>
+        </div>
+      </section>
+
+      <section id="portal" class="community-app">
+        <header class="community-hero">
+          <div>
+            <p class="eyebrow">Preview Community</p>
+            <h1 class="community-name" id="community-name"></h1>
+            <p class="subtitle" id="community-subtitle"></p>
+          </div>
+          <div class="hero-actions">
+            <a class="button button-primary" id="bot-link" href="#" target="_blank" rel="noreferrer">Talk to the bot</a>
+            <a class="button button-secondary" href="https://comunia.chat" target="_blank" rel="noreferrer">Learn more</a>
+          </div>
+        </header>
+
+        <main class="community-layout">
+          <section class="community-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Upcoming</p>
+                <h2>Events</h2>
+              </div>
+              <p class="panel-note">The plans already strong enough to leave the chat and become something real.</p>
+            </div>
+            <div id="public-events" class="stack"></div>
+          </section>
+
+          <section class="community-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">People</p>
+                <h2>Members</h2>
+              </div>
+              <p class="panel-note">A readable layer of context instead of rediscovering everyone from scratch every week.</p>
+            </div>
+            <div id="public-members" class="member-grid"></div>
+          </section>
+
+          <section class="community-panel full-span">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">AI Stream</p>
+                <h2>Potential ideas for the community</h2>
+              </div>
+              <p class="panel-note">Static demo voting works locally in the browser so you can still click around.</p>
+            </div>
+            <div id="public-ideas" class="idea-stream"></div>
+          </section>
+        </main>
+      </section>
+
+      <p class="footer-note">
+        This is a static preview made for sharing. The full product is open source and runs with live community data.
+      </p>
+    </div>
+
+    <script>
+      const demo = {
+        community: {
+          name: "Founders BA",
+          type: "local",
+          location: "Buenos Aires",
+          botUrl: "https://comunia.chat"
+        },
+        upcomingEvents: [
+          {
+            title: "Founder dinner in Palermo",
+            date: "Thursday · 20:00",
+            location: "Palermo Soho",
+            note: "Small table for operators, builders, and people trying to get unstuck."
+          },
+          {
+            title: "Sunday walk + coffee",
+            date: "Sunday · 10:30",
+            location: "Rosedal",
+            note: "Low-pressure format for people who want conversation without a formal event."
+          },
+          {
+            title: "AI builders salon",
+            date: "Next Wednesday · 19:00",
+            location: "Microcentro",
+            note: "A tighter gathering around what people are actually building right now."
+          }
+        ],
+        members: [
+          {
+            name: "Mora",
+            status: "active",
+            note: "Prefers smaller dinners, often suggests in-person formats, and usually pushes for Thursday nights."
+          },
+          {
+            name: "Ivo",
+            status: "warm",
+            note: "Shows up more reliably when events stay under 10 people and feel focused."
+          },
+          {
+            name: "Camila",
+            status: "active",
+            note: "Interested in design, community ops, and cross-disciplinary meetups."
+          },
+          {
+            name: "Nico",
+            status: "re-engage",
+            note: "Has been quiet lately but consistently reacted to dinners and founder circles."
+          }
+        ],
+        ideas: [
+          {
+            id: "dinner-series",
+            title: "Monthly neighborhood dinner series",
+            description: "Members keep converging on intimate dinners over larger events. Turn that into a recurring format.",
+            rationale: "Repeated signals around Palermo, smaller groups, and midweek availability.",
+            format: "high fit",
+            upvotes: 12,
+            downvotes: 1
+          },
+          {
+            id: "operator-breakfast",
+            title: "Friday operator breakfast",
+            description: "A quiet morning format for community builders, founders, and people who don't want another night event.",
+            rationale: "Creates a different rhythm for members who avoid evening plans.",
+            format: "experiment",
+            upvotes: 8,
+            downvotes: 2
+          },
+          {
+            id: "walk-and-think",
+            title: "Walk-and-think pairs",
+            description: "Match members with adjacent interests for a simple one-hour walk instead of a full event.",
+            rationale: "Useful when there is social energy but not enough momentum for a larger gathering.",
+            format: "lightweight",
+            upvotes: 15,
+            downvotes: 0
+          }
+        ]
+      };
+
+      const state = {
+        votes: Object.fromEntries(demo.ideas.map((idea) => [idea.id, 0]))
+      };
+
+      document.getElementById("community-name").textContent = demo.community.name;
+      document.getElementById("community-subtitle").textContent =
+        [demo.community.type, demo.community.location].filter(Boolean).join(" · ");
+      document.getElementById("bot-link").href = demo.community.botUrl;
+
+      function renderEvents() {
+        const container = document.getElementById("public-events");
+        container.innerHTML = demo.upcomingEvents.map((event) => `
+          <article class="event-card">
+            <h3>${escapeHtml(event.title)}</h3>
+            <p class="meta">${escapeHtml(event.date)}${event.location ? " · " + escapeHtml(event.location) : ""}</p>
+            <p class="meta">${escapeHtml(event.note)}</p>
+          </article>
+        `).join("");
+      }
+
+      function renderMembers() {
+        const container = document.getElementById("public-members");
+        container.innerHTML = demo.members.map((member) => `
+          <article class="member-card">
+            <div class="member-top">
+              <h3 class="member-name">${escapeHtml(member.name)}</h3>
+              <span class="member-status">${escapeHtml(member.status)}</span>
+            </div>
+            <p class="member-note">${escapeHtml(member.note)}</p>
+          </article>
+        `).join("");
+      }
+
+      function renderIdeas() {
+        const container = document.getElementById("public-ideas");
+        container.innerHTML = demo.ideas.map((idea) => {
+          const adjustment = state.votes[idea.id] || 0;
+          const up = idea.upvotes + (adjustment === 1 ? 1 : 0);
+          const down = idea.downvotes + (adjustment === -1 ? 1 : 0);
+          return `
+            <article class="idea-card" data-id="${escapeHtml(idea.id)}">
+              <div class="idea-header">
+                <div>
+                  <h3>${escapeHtml(idea.title)}</h3>
+                  <p class="idea-meta">${escapeHtml(idea.description)}</p>
+                </div>
+                <span class="idea-format">${escapeHtml(idea.format)}</span>
+              </div>
+              <p class="idea-meta">Why this now: ${escapeHtml(idea.rationale)}</p>
+              <div class="idea-actions">
+                <div class="vote-row">
+                  <button class="vote-btn ${adjustment === 1 ? "active" : ""}" data-idea="${escapeHtml(idea.id)}" data-vote="1">Upvote</button>
+                  <button class="vote-btn ${adjustment === -1 ? "active" : ""}" data-idea="${escapeHtml(idea.id)}" data-vote="-1">Downvote</button>
+                </div>
+                <div class="vote-count">${up} up · ${down} down</div>
+              </div>
+            </article>
+          `;
+        }).join("");
+
+        container.querySelectorAll(".vote-btn").forEach((button) => {
+          button.addEventListener("click", () => {
+            const ideaId = button.getAttribute("data-idea");
+            const value = Number(button.getAttribute("data-vote"));
+            state.votes[ideaId] = state.votes[ideaId] === value ? 0 : value;
+            renderIdeas();
+          });
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      renderEvents();
+      renderMembers();
+      renderIdeas();
+    </script>
+  </body>
+</html>

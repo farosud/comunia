@@ -7,6 +7,7 @@ import { ReasoningStream } from '../reasoning.js'
 import { HealthMonitor } from '../health.js'
 import { createDb } from '../db/index.js'
 import { users, events, importLog } from '../db/schema.js'
+import { ProductIdeas } from '../community/product-ideas.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -15,6 +16,7 @@ describe('Dashboard API', () => {
   let db: ReturnType<typeof createDb>
   let tmpDir: string
   let api: ReturnType<typeof createApiRoutes>
+  let productIdeas: ProductIdeas
 
   beforeEach(() => {
     db = createDb(':memory:')
@@ -25,6 +27,36 @@ describe('Dashboard API', () => {
 
     db.insert(users).values({ id: 'u1', name: 'Emi', status: 'active',
       joinedAt: new Date().toISOString(), lastActiveAt: new Date().toISOString() }).run()
+
+    productIdeas = new ProductIdeas(db, {
+      chat: async () => ({
+        text: JSON.stringify([
+          {
+            title: 'Community request board',
+            summary: 'Turns repeated asks into buildable requests.',
+            targetMembers: 'Members asking for tactical help',
+            rationale: 'Imported signals show repeated asks.',
+            buildPrompt: 'Build a community request board MVP.',
+          },
+          {
+            title: 'Operator map',
+            summary: 'Shows who knows what.',
+            targetMembers: 'Members looking for trusted peers',
+            rationale: 'Imported profiles show useful expertise.',
+            buildPrompt: 'Build an operator map MVP.',
+          },
+          {
+            title: 'Plan co-pilot',
+            summary: 'Turns ideas into actual plans.',
+            targetMembers: 'Members proposing dinners or meetups',
+            rationale: 'Event suggestions keep appearing in chat.',
+            buildPrompt: 'Build a plan co-pilot MVP.',
+          },
+        ]),
+      }),
+    } as any, new AgentMemory(tmpDir), {
+      community: { name: 'Comunia', type: 'local', location: 'Buenos Aires' },
+    } as any)
 
     api = createApiRoutes({
       db,
@@ -37,6 +69,7 @@ describe('Dashboard API', () => {
         community: { name: 'Comunia', type: 'local', location: 'Buenos Aires' },
         publicPortal: { passcode: 'community-123', botUrl: 'https://t.me/comunia_bot' },
       } as any,
+      productIdeas,
     })
   })
 
@@ -74,6 +107,18 @@ describe('Dashboard API', () => {
     const data = await res.json()
     expect(data.passcode).toBe('new-code')
     expect(data.botUrl).toBe('https://t.me/new_bot')
+  })
+
+  it('PUT /community/interaction-settings updates group behavior and topic creation settings', async () => {
+    const res = await api.request('/community/interaction-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ responseMode: 'announcements_only', allowTelegramTopicCreation: true }),
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.responseMode).toBe('announcements_only')
+    expect(data.allowTelegramTopicCreation).toBe(true)
   })
 
   it('POST /cloud/publish-credentials provisions a slug-specific publish token', async () => {
@@ -142,6 +187,30 @@ describe('Dashboard API', () => {
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(1)
     expect(data[0].status).toBe('proposed')
+  })
+
+  it('GET /product-ideas returns seeded ideas once imports exist', async () => {
+    db.insert(importLog).values({
+      id: 'import-1',
+      sourceFile: 'result.json',
+      type: 'telegram-export',
+      status: 'completed',
+      error: null,
+      messagesProcessed: 10,
+      membersProcessed: 3,
+      entriesExtracted: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      importedAt: new Date().toISOString(),
+    }).run()
+
+    const res = await api.request('/product-ideas')
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.hasImportedContext).toBe(true)
+    expect(data.ideas).toHaveLength(3)
+    expect(data.daioUrl).toBe('https://daio.md/')
   })
 
   it('POST /events/:id/approve approves event', async () => {

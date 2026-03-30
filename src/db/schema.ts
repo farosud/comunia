@@ -109,6 +109,18 @@ export const communityIdeas = sqliteTable('community_ideas', {
   createdAt: text('created_at').notNull(),
 })
 
+export const productIdeas = sqliteTable('product_ideas', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  targetMembers: text('target_members'),
+  rationale: text('rationale'),
+  buildPrompt: text('build_prompt').notNull(),
+  source: text('source').notNull().default('agent'),
+  status: text('status').notNull().default('open'),
+  createdAt: text('created_at').notNull(),
+})
+
 export const communityIdeaVotes = sqliteTable('community_idea_votes', {
   id: text('id').primaryKey(),
   ideaId: text('idea_id').notNull().references(() => communityIdeas.id),

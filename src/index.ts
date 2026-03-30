@@ -21,6 +21,8 @@ import { TelegramMemberSync } from './members/telegram-sync.js'
 import { PublicPortal } from './community/public-portal.js'
 import { CloudSyncClient } from './community/cloud-sync.js'
 import { GroupPolicy } from './community/group-policy.js'
+import { ProductIdeas } from './community/product-ideas.js'
+import { CommunitySiteGenerator } from './community/site-generator.js'
 import PQueue from 'p-queue'
 import path from 'path'
 import fs from 'fs'
@@ -96,6 +98,8 @@ export async function startApp() {
   }
 
   const llm = createProvider(config.llm)
+  const productIdeas = new ProductIdeas(db, llm, agentMemory, config)
+  const siteGenerator = new CommunitySiteGenerator(db, llm, agentMemory, config)
 
   // Rate-limited LLM queue
   const llmQueue = new PQueue({ concurrency: config.llm.maxConcurrent })
@@ -143,7 +147,14 @@ export async function startApp() {
 
   // Agent core
   const agentCore = new AgentCore({
-    llm, agentMemory, userMemory, eventManager, reasoning, config, sendDm, sendGroup, db,
+    llm, agentMemory, userMemory, eventManager, reasoning, config, sendDm, sendGroup,
+    createGroupTopic: async (name: string) => {
+      const telegram = bridges.find((bridge): bridge is TelegramBridge => bridge.platform === 'telegram' && bridge instanceof TelegramBridge)
+      if (!telegram) throw new Error('Telegram bridge is not available')
+      return telegram.createForumTopic(name)
+    },
+    groupPolicy,
+    db,
   })
 
   // Smart targeting
@@ -249,6 +260,7 @@ export async function startApp() {
   const jobCtx = {
     llm, eventManager, userMemory, agentMemory, reasoning, config, sendDm, sendGroup, db,
     telegramMemberSync,
+    productIdeas,
     reason: (jobName: string, level: string, message: string, data?: Record<string, unknown>) => {
       reasoning.emit_reasoning({ jobName, level: level as any, message, data })
     },
@@ -274,7 +286,7 @@ export async function startApp() {
   const dashboard = createDashboard({
     port: config.dashboard.port,
     secret: config.dashboard.secret,
-    db, eventManager, userMemory, agentMemory, reasoning, health, config, agentCore,
+    db, eventManager, userMemory, agentMemory, reasoning, health, config, agentCore, productIdeas, siteGenerator,
   })
 
   // Mount WhatsApp webhook routes on dashboard server if WhatsApp is enabled

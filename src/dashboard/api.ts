@@ -8,6 +8,7 @@ import { UserProfileMemory } from '../memory/user-profile-memory.js'
 import { PublicPortal } from '../community/public-portal.js'
 import { CloudPublishRegistry } from '../community/cloud-publish.js'
 import { GroupPolicy } from '../community/group-policy.js'
+import type { ProductIdeas } from '../community/product-ideas.js'
 import type { ReasoningStream } from '../reasoning.js'
 import type { HealthMonitor } from '../health.js'
 import type { AgentCore } from '../agent/core.js'
@@ -24,6 +25,7 @@ interface ApiDeps {
   health: HealthMonitor
   config: Config
   agentCore?: AgentCore
+  productIdeas?: ProductIdeas
 }
 
 export function createApiRoutes(deps: ApiDeps): Hono {
@@ -58,6 +60,7 @@ export function createApiRoutes(deps: ApiDeps): Hono {
     const body = await c.req.json()
     const settings = await groupPolicy.updateSettings({
       responseMode: body.responseMode,
+      allowTelegramTopicCreation: body.allowTelegramTopicCreation,
     })
     return c.json(settings)
   })
@@ -140,6 +143,14 @@ export function createApiRoutes(deps: ApiDeps): Hono {
   api.get('/events/proposals', async (c) => {
     const proposals = await deps.eventManager.getProposals()
     return c.json(proposals)
+  })
+
+  api.get('/product-ideas', async (c) => {
+    if (!deps.productIdeas) {
+      return c.json({ error: 'Product ideas are unavailable in this runtime.' }, 503)
+    }
+
+    return c.json(await deps.productIdeas.getDashboardState())
   })
 
   api.post('/events/:id/approve', async (c) => {
