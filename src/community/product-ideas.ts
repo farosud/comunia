@@ -6,6 +6,7 @@ import { importLog, productIdeas, userMemory, users } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
 type Db = any
+const PRODUCT_IDEA_LLM_TIMEOUT_MS = 8000
 
 interface ProductIdeaInput {
   title: string
@@ -225,7 +226,8 @@ export class ProductIdeas {
     let ideas = fallbackProductIdeas(input.community, input.fallbackSource, input.count)
 
     try {
-      const response = await this.llm.chat(
+      const response = await withTimeout(
+        this.llm.chat(
         buildIdeaGenerationPrompt({
           community: input.community,
           signalSummary: input.signalSummary,
@@ -238,6 +240,9 @@ export class ProductIdeas {
           role: 'user',
           content: `Propose ${input.count} software product ideas this community would plausibly want built next.`,
         }],
+        ),
+        PRODUCT_IDEA_LLM_TIMEOUT_MS,
+        'Product idea model call timed out.',
       )
 
       const parsed = JSON.parse(response.text)
@@ -354,6 +359,55 @@ function fallbackProductIdeas(
       rationale: 'Repeated requests usually point to a productable community utility.',
       buildPrompt: defaultBuildPrompt(`${community} founder helper library`, communityConfig),
     },
+    {
+      title: `${community} recommendation ring`,
+      summary: 'A lightweight system for members to recommend episodes, threads, products, or resources to each other in a structured way.',
+      targetMembers: 'Members who want high-signal recommendations without endless scrolling',
+      rationale: 'Communities often repeat the same recommendation loops in comments and posts.',
+      buildPrompt: defaultBuildPrompt(`${community} recommendation ring`, communityConfig),
+    },
+    {
+      title: `${community} newcomer guide builder`,
+      summary: 'A living guide that turns repeated beginner questions into a clean onboarding path for new members.',
+      targetMembers: 'New members and moderators tired of answering the same questions',
+      rationale: 'Recurring first-time questions usually mean onboarding is an obvious product opportunity.',
+      buildPrompt: defaultBuildPrompt(`${community} newcomer guide builder`, communityConfig),
+    },
+    {
+      title: `${community} prompt pack generator`,
+      summary: 'A tool that converts the community’s best prompts, templates, and examples into reusable packs.',
+      targetMembers: 'Members who want to quickly apply the community’s best practices',
+      rationale: 'High-performing community examples are often useful beyond the original thread.',
+      buildPrompt: defaultBuildPrompt(`${community} prompt pack generator`, communityConfig),
+    },
+    {
+      title: `${community} remix board`,
+      summary: 'A place to take existing community ideas and remix them into variants, improvements, or spin-offs.',
+      targetMembers: 'Members who like iterating on each other’s ideas rather than starting from scratch',
+      rationale: 'Communities generate compounding value when ideas are easy to extend rather than rediscover.',
+      buildPrompt: defaultBuildPrompt(`${community} remix board`, communityConfig),
+    },
+    {
+      title: `${community} challenge calendar`,
+      summary: 'A recurring challenge system that turns loose community participation into weekly or monthly prompts and streaks.',
+      targetMembers: 'Members who want a reason to participate more consistently',
+      rationale: 'Many communities need lightweight rituals to convert passive readers into active contributors.',
+      buildPrompt: defaultBuildPrompt(`${community} challenge calendar`, communityConfig),
+    },
+    {
+      title: `${community} request bounty board`,
+      summary: 'A small marketplace for feature requests, community asks, or mini-project bounties that members can pick up.',
+      targetMembers: 'Members willing to help build or solve concrete requests',
+      rationale: 'Strong demand signals become more useful when they are attached to visible follow-through.',
+      buildPrompt: defaultBuildPrompt(`${community} request bounty board`, communityConfig),
+    },
+    {
+      title: `${community} canonical answer vault`,
+      summary: 'A versioned answer bank for the recurring questions, debates, and explanations that define the community.',
+      targetMembers: 'Readers trying to catch up fast without digging through years of posts',
+      rationale: 'When the same discussions recur, the community is asking for a better retrieval surface.',
+      buildPrompt: defaultBuildPrompt(`${community} canonical answer vault`, communityConfig),
+    },
   ]
 
   if (source === 'seed') return ideas.slice(0, count)
@@ -379,4 +433,20 @@ Please produce:
 
 function truncate(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}\n...` : value
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 }

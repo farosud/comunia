@@ -75,39 +75,27 @@ export function renderSubredditIdeasPage(payload: SubredditIdeasPayload) {
   const title = payload.subreddit.title || (payload.subreddit.name ? `r/${payload.subreddit.name}` : 'Reddit community')
   const description = payload.subreddit.publicDescription || 'Comunia read this subreddit and translated the strongest signals into product ideas.'
   const pageTitle = `${title} | Comunia`
-  const postCards = payload.highlights.posts.length
-    ? payload.highlights.posts.slice(0, 6).map((post) => `
-      <article class="reddit-post-card">
-        <div class="post-meta">
-          <span>score ${formatNumber(post.score)}</span>
-          <span>comments ${formatNumber(post.comments)}</span>
-          ${post.flair ? `<span>${escapeHtml(String(post.flair))}</span>` : ''}
-        </div>
-        <h3>${escapeHtml(String(post.title || 'Untitled post'))}</h3>
-        ${post.selftext ? `<p>${escapeHtml(String(post.selftext))}</p>` : ''}
-        <a href="${escapeAttribute(String(post.permalink || post.url || payload.source.redditUrl))}" target="_blank" rel="noreferrer">Open thread</a>
-      </article>
-    `).join('')
-    : `<div class="empty-state">No top posts were extracted from the Reddit payload.</div>`
-
-  const commentCards = payload.highlights.comments.length
-    ? payload.highlights.comments.slice(0, 4).map((comment) => `
-      <article class="comment-card">
-        <p>${escapeHtml(String(comment.body || ''))}</p>
-        <span>${escapeHtml(String(comment.author || 'unknown'))} · score ${formatNumber(comment.score)}</span>
-      </article>
-    `).join('')
-    : `<div class="empty-state">No comment highlights were extracted for this request.</div>`
+  const communityName = payload.subreddit.name ? `r/${payload.subreddit.name}` : title
 
   const ideaCards = payload.comunia.ideas.length
     ? payload.comunia.ideas.map((idea, index) => `
-      <article class="idea-card">
-        <div class="idea-kicker">Idea ${index + 1}</div>
-        <h3>${escapeHtml(idea.title)}</h3>
-        <p class="idea-summary">${escapeHtml(idea.summary)}</p>
-        ${idea.targetMembers ? `<p class="idea-detail"><strong>For:</strong> ${escapeHtml(idea.targetMembers)}</p>` : ''}
-        ${idea.rationale ? `<p class="idea-detail"><strong>Why:</strong> ${escapeHtml(idea.rationale)}</p>` : ''}
-        ${idea.buildPrompt ? `<details class="idea-prompt"><summary>Build prompt</summary><pre>${escapeHtml(idea.buildPrompt)}</pre></details>` : ''}
+      <article class="idea-feed-card">
+        <div class="idea-rank">${index + 1}</div>
+        <div class="idea-main">
+          <div class="idea-meta-row">
+            <span class="idea-subreddit">${escapeHtml(communityName)}</span>
+            <span class="idea-separator">•</span>
+            <span>potential product idea</span>
+          </div>
+          <h2>${escapeHtml(idea.title)}</h2>
+          <p class="idea-summary">${escapeHtml(idea.summary)}</p>
+          ${idea.targetMembers ? `<p class="idea-detail"><strong>Who it helps:</strong> ${escapeHtml(idea.targetMembers)}</p>` : ''}
+          ${idea.rationale ? `<p class="idea-detail"><strong>Why it could work:</strong> ${escapeHtml(idea.rationale)}</p>` : ''}
+        </div>
+        <div class="idea-actions">
+          <a class="idea-link" href="${escapeAttribute(payload.source.normalizedPath)}.json">JSON</a>
+          <a class="idea-link idea-link--primary" href="${escapeAttribute(payload.source.redditUrl)}" target="_blank" rel="noreferrer">Open subreddit</a>
+        </div>
       </article>
     `).join('')
     : `<div class="empty-state">${escapeHtml(payload.comunia.note || 'No product ideas were generated for this request.')}</div>`
@@ -122,30 +110,90 @@ export function renderSubredditIdeasPage(payload: SubredditIdeasPayload) {
   <link rel="stylesheet" href="/subreddit-ideas.css">
 </head>
 <body>
+  <div class="reddit-shell">
+    <header class="reddit-topbar">
+      <div class="reddit-brand">comunia.chat</div>
+      <div class="reddit-top-actions">
+        <a href="${escapeAttribute(payload.source.redditUrl)}" target="_blank" rel="noreferrer">Open on Reddit</a>
+        <a href="${escapeAttribute(payload.source.normalizedPath)}.json">JSON</a>
+      </div>
+    </header>
+
+    <main class="reddit-layout">
+      <section class="reddit-feed">
+        <header class="reddit-feed-header">
+          <div class="feed-title-row">
+            <div class="feed-avatar">${escapeHtml((payload.subreddit.name || 'r').slice(0, 1).toUpperCase())}</div>
+            <div>
+              <p class="feed-kicker">${escapeHtml(communityName)}</p>
+              <h1>10 potential product ideas this community would enjoy</h1>
+            </div>
+          </div>
+          <p class="feed-description">${escapeHtml(description)}</p>
+        </header>
+        <div class="idea-feed">${ideaCards}</div>
+      </section>
+
+      <aside class="reddit-sidebar">
+        <section class="sidebar-card">
+          <p class="sidebar-label">Community</p>
+          <h3>${escapeHtml(title)}</h3>
+          <p>${escapeHtml(description)}</p>
+          <dl class="sidebar-stats">
+            <div><dt>Subscribers</dt><dd>${formatNumber(payload.subreddit.subscribers)}</dd></div>
+            <div><dt>Active now</dt><dd>${formatNumber(payload.subreddit.activeUsers)}</dd></div>
+            <div><dt>Ideas shown</dt><dd>${payload.comunia.ideas.length}</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>`
+}
+
+export function renderSubredditErrorPage(input: {
+  requestedPath: string
+  message: string
+  status: number
+}) {
+  const title = `Comunia | Reddit route unavailable`
+  const safeMessage = escapeHtml(input.message)
+  const subredditLabel = escapeHtml(input.requestedPath.replace(/\.json$/, '') || '/r/...')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <meta name="description" content="Comunia could not fetch the Reddit JSON for this route right now.">
+  <link rel="stylesheet" href="/subreddit-ideas.css">
+</head>
+<body>
   <div class="subreddit-shell">
     <header class="subreddit-hero">
       <div class="hero-copy">
-        <p class="hero-kicker">Comunia community read</p>
-        <h1>${escapeHtml(title)}</h1>
-        <p class="hero-description">${escapeHtml(description)}</p>
+        <p class="hero-kicker">Comunia subreddit read</p>
+        <h1>We could not fetch this subreddit right now</h1>
+        <p class="hero-description">The local app is running, but Reddit did not give this server the JSON payload needed to build the page for ${subredditLabel}.</p>
       </div>
       <div class="hero-stats">
         <div class="stat-chip">
-          <span>Subscribers</span>
-          <strong>${formatNumber(payload.subreddit.subscribers)}</strong>
+          <span>Status</span>
+          <strong>${input.status}</strong>
         </div>
         <div class="stat-chip">
-          <span>Active now</span>
-          <strong>${formatNumber(payload.subreddit.activeUsers)}</strong>
+          <span>Route</span>
+          <strong>${subredditLabel}</strong>
         </div>
         <div class="stat-chip">
-          <span>Top posts read</span>
-          <strong>${payload.highlights.posts.length}</strong>
+          <span>What happened</span>
+          <strong>Upstream blocked</strong>
         </div>
       </div>
       <div class="hero-actions">
-        <a class="hero-link primary-link" href="${escapeAttribute(payload.source.redditUrl)}" target="_blank" rel="noreferrer">Open on Reddit</a>
-        <a class="hero-link" href="${escapeAttribute(payload.source.normalizedPath)}.json">See Comunia JSON</a>
+        <a class="hero-link" href="/">Back to dashboard</a>
       </div>
     </header>
 
@@ -153,42 +201,32 @@ export function renderSubredditIdeasPage(payload: SubredditIdeasPayload) {
       <section class="panel panel-ideas">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Recommended builds</p>
-            <h2>Products this community might actually want</h2>
+            <p class="panel-kicker">Error details</p>
+            <h2>Why the page is unavailable</h2>
           </div>
-          <p class="panel-note">Generated from the live Reddit JSON for this subreddit, not a cached editorial stub.</p>
+          <p class="panel-note">This is a fail-fast page so the route does not hang when Reddit stalls or denies access.</p>
         </div>
-        <div class="idea-list">${ideaCards}</div>
+        <div class="idea-list">
+          <article class="idea-card">
+            <div class="idea-kicker">Upstream response</div>
+            <h3>Reddit request failed</h3>
+            <p class="idea-summary">${safeMessage}</p>
+            <p class="idea-detail"><strong>Next step:</strong> retry later, add a proxy layer, or switch this feature to Reddit's authenticated API.</p>
+          </article>
+        </div>
       </section>
 
       <section class="panel panel-signals">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Signal trace</p>
-            <h2>Why these ideas</h2>
+            <p class="panel-kicker">Suggested fixes</p>
+            <h2>Ways to make this reliable</h2>
           </div>
         </div>
-        <pre class="signal-summary">${escapeHtml(payload.comunia.signalSummary)}</pre>
-      </section>
-
-      <section class="panel panel-posts">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Top threads</p>
-            <h2>What people are already reacting to</h2>
-          </div>
-        </div>
-        <div class="post-list">${postCards}</div>
-      </section>
-
-      <section class="panel panel-comments">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Comment texture</p>
-            <h2>High-signal replies</h2>
-          </div>
-        </div>
-        <div class="comment-list">${commentCards}</div>
+        <pre class="signal-summary">1. Retry from a different IP or environment.
+2. Add a dedicated proxy or cached fetch layer.
+3. Move from unauthenticated .json scraping to Reddit's authenticated API.
+4. Keep this HTML error state so the route stays responsive.</pre>
       </section>
     </main>
   </div>

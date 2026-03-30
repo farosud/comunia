@@ -65,6 +65,19 @@ describe('Dashboard server', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
+    const analyzeExternalSignals = vi.fn().mockResolvedValue({
+      signalSummary: 'Subreddit: r/TheGoodPlace\nTop posts:\n- What would your points score be?',
+      ideas: [
+        {
+          title: 'Ethics challenge generator',
+          summary: 'Turns episode debates into interactive prompts.',
+          targetMembers: 'Fans who like structured games',
+          rationale: 'The subreddit repeatedly proposes ethics quizzes and scorekeeping.',
+          buildPrompt: 'Build an ethics challenge generator MVP.',
+        },
+      ],
+    })
+
     const dashboard = createDashboard({
       port: 3000,
       secret: 'test-secret',
@@ -80,18 +93,7 @@ describe('Dashboard server', () => {
         cloud: { serverEnabled: false },
       } as any,
       productIdeas: {
-        analyzeExternalSignals: vi.fn().mockResolvedValue({
-          signalSummary: 'Subreddit: r/TheGoodPlace\nTop posts:\n- What would your points score be?',
-          ideas: [
-            {
-              title: 'Ethics challenge generator',
-              summary: 'Turns episode debates into interactive prompts.',
-              targetMembers: 'Fans who like structured games',
-              rationale: 'The subreddit repeatedly proposes ethics quizzes and scorekeeping.',
-              buildPrompt: 'Build an ethics challenge generator MVP.',
-            },
-          ],
-        }),
+        analyzeExternalSignals,
       } as any,
     })
 
@@ -103,7 +105,10 @@ describe('Dashboard server', () => {
     expect(html).toContain('The Good Place')
     expect(html).toContain('Ethics challenge generator')
     expect(html).toContain('/r/TheGoodPlace.json')
-    expect(html).toContain('What would your points score be?')
+    expect(html).toContain('10 potential product ideas this community would enjoy')
+    expect(html).not.toContain('Why these ideas')
+    expect(html).not.toContain('What people are already reacting to')
+    expect(analyzeExternalSignals).toHaveBeenCalledWith(expect.objectContaining({ count: 10 }))
   })
 
   it('GET /r/:subreddit.json returns the machine-readable payload', async () => {
@@ -181,5 +186,87 @@ describe('Dashboard server', () => {
     expect(data.highlights.posts).toHaveLength(1)
     expect(data.comunia.ideas[0].title).toBe('Ethics challenge generator')
     expect(data.redditJson.data.children[0].data.title).toBe('What would your points score be?')
+  })
+
+  it('GET /r/:subreddit renders a branded error page when reddit blocks the request', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input)
+      if (url.includes('/about.json')) {
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      return new Response('blocked', { status: 403 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const dashboard = createDashboard({
+      port: 3000,
+      secret: 'test-secret',
+      db,
+      eventManager: new EventManager(db),
+      userMemory: new UserMemory(db),
+      agentMemory: new AgentMemory(tmpDir),
+      reasoning: new ReasoningStream(),
+      health: new HealthMonitor(),
+      config: {
+        community: { name: 'Comunia', type: 'local', location: 'Buenos Aires' },
+        publicPortal: { passcode: 'community-123', botUrl: '' },
+        cloud: { serverEnabled: false },
+      } as any,
+      productIdeas: {
+        analyzeExternalSignals: vi.fn(),
+      } as any,
+    })
+
+    const res = await dashboard.app.request('http://localhost/r/TheGoodPlace')
+    expect(res.status).toBe(403)
+    expect(res.headers.get('content-type')).toContain('text/html')
+    const html = await res.text()
+    expect(html).toContain('We could not fetch this subreddit right now')
+    expect(html).toContain('Reddit blocked the upstream JSON request from this server.')
+  })
+
+  it('GET /r/:subreddit.json returns a fast json error when reddit blocks the request', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input)
+      if (url.includes('/about.json')) {
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      return new Response('blocked', { status: 403 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const dashboard = createDashboard({
+      port: 3000,
+      secret: 'test-secret',
+      db,
+      eventManager: new EventManager(db),
+      userMemory: new UserMemory(db),
+      agentMemory: new AgentMemory(tmpDir),
+      reasoning: new ReasoningStream(),
+      health: new HealthMonitor(),
+      config: {
+        community: { name: 'Comunia', type: 'local', location: 'Buenos Aires' },
+        publicPortal: { passcode: 'community-123', botUrl: '' },
+        cloud: { serverEnabled: false },
+      } as any,
+      productIdeas: {
+        analyzeExternalSignals: vi.fn(),
+      } as any,
+    })
+
+    const res = await dashboard.app.request('http://localhost/r/TheGoodPlace.json')
+    expect(res.status).toBe(403)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    const data = await res.json()
+    expect(data.error).toContain('Reddit blocked the upstream JSON request from this server.')
+    expect(data.status).toBe(403)
   })
 })

@@ -14,8 +14,8 @@ import { PublicPortal } from '../community/public-portal.js'
 import { CloudPublishRegistry } from '../community/cloud-publish.js'
 import type { CommunitySiteGenerator } from '../community/site-generator.js'
 import type { ProductIdeas } from '../community/product-ideas.js'
-import { fetchRedditLinkSnapshot } from '../community/reddit-link-analysis.js'
-import { buildSubredditIdeasPayload, renderSubredditIdeasPage } from '../community/reddit-showcase.js'
+import { fetchRedditLinkSnapshot, RedditFetchError } from '../community/reddit-link-analysis.js'
+import { buildSubredditIdeasPayload, renderSubredditErrorPage, renderSubredditIdeasPage } from '../community/reddit-showcase.js'
 
 interface DashboardConfig {
   port: number
@@ -102,7 +102,7 @@ export function createDashboard(config: DashboardConfig) {
             location: 'Reddit',
           },
           signalSummary: snapshot.signalSummary,
-          count: 3,
+          count: 10,
         })
         : null
       const payload = buildSubredditIdeasPayload({
@@ -118,13 +118,24 @@ export function createDashboard(config: DashboardConfig) {
       return c.html(renderSubredditIdeasPage(payload))
     } catch (error) {
       const message = String(error instanceof Error ? error.message : error)
-      const status = /Only Reddit subreddit paths are supported/.test(message)
-        ? 400
-        : /status 404/.test(message)
-          ? 404
-          : 502
+      const requestUrl = new URL(c.req.url)
+      const status = (error instanceof RedditFetchError
+        ? error.status || 502
+        : /Only Reddit subreddit paths are supported/.test(message)
+          ? 400
+          : /status 404/.test(message)
+            ? 404
+            : 502) as 400 | 403 | 404 | 502
 
-      return c.json({ error: message }, status)
+      if (requestUrl.pathname.endsWith('.json')) {
+        return c.json({ error: message, status }, status)
+      }
+
+      return c.html(renderSubredditErrorPage({
+        requestedPath: requestUrl.pathname,
+        message,
+        status,
+      }), status)
     }
   })
 

@@ -1,4 +1,15 @@
 const REDDIT_USER_AGENT = 'comunia/0.1.4 (+https://comunia.chat)'
+const REDDIT_FETCH_TIMEOUT_MS = 8000
+
+export class RedditFetchError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+  ) {
+    super(message)
+    this.name = 'RedditFetchError'
+  }
+}
 
 interface RedditThing {
   kind?: string
@@ -39,12 +50,17 @@ export async function fetchRedditLinkSnapshot(requestPath: string): Promise<Redd
   const aboutUrl = subreddit ? `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/about.json?raw_json=1` : null
 
   const [redditJsonResponse, aboutResponse] = await Promise.all([
-    fetch(redditJsonUrl, { headers: { 'User-Agent': REDDIT_USER_AGENT } }),
-    aboutUrl ? fetch(aboutUrl, { headers: { 'User-Agent': REDDIT_USER_AGENT } }).catch(() => null) : Promise.resolve(null),
+    fetchWithTimeout(redditJsonUrl),
+    aboutUrl ? fetchWithTimeout(aboutUrl).catch(() => null) : Promise.resolve(null),
   ])
 
   if (!redditJsonResponse.ok) {
-    throw new Error(`Reddit JSON request failed with status ${redditJsonResponse.status}.`)
+    throw new RedditFetchError(
+      redditJsonResponse.status === 403
+        ? 'Reddit blocked the upstream JSON request from this server.'
+        : `Reddit JSON request failed with status ${redditJsonResponse.status}.`,
+      redditJsonResponse.status,
+    )
   }
 
   const redditJson = await redditJsonResponse.json()
@@ -62,6 +78,20 @@ export async function fetchRedditLinkSnapshot(requestPath: string): Promise<Redd
     redditJson,
     highlights,
     signalSummary: buildSignalSummary({ subreddit, about, highlights }),
+  }
+}
+
+async function fetchWithTimeout(url: string) {
+  try {
+    return await fetch(url, {
+      headers: { 'User-Agent': REDDIT_USER_AGENT },
+      signal: AbortSignal.timeout(REDDIT_FETCH_TIMEOUT_MS),
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new RedditFetchError(`Reddit did not respond within ${REDDIT_FETCH_TIMEOUT_MS / 1000}s.`)
+    }
+    throw error
   }
 }
 

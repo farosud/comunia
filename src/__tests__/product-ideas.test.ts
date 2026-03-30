@@ -123,4 +123,28 @@ describe('ProductIdeas', () => {
     expect(result.ideas[0].title).toBe('Episode rewatch planner')
     expect(service.listIdeas()).toHaveLength(0)
   })
+
+  it('falls back to deterministic ideas when the model call hangs', async () => {
+    vi.useFakeTimers()
+    const llm = {
+      chat: vi.fn(() => new Promise(() => {})),
+    } as any
+
+    const service = new ProductIdeas(db, llm, new AgentMemory(tmpDir), {
+      community: { name: 'Sideprojects', type: 'local', location: 'Buenos Aires' },
+    } as any)
+
+    const pending = service.analyzeExternalSignals({
+      community: { name: 'r/TheGoodPlace', type: 'distributed', location: 'Reddit' },
+      signalSummary: 'Top posts discuss ethics games and favorite episodes.',
+      count: 2,
+    })
+
+    await vi.advanceTimersByTimeAsync(8100)
+    const result = await pending
+
+    expect(result.ideas).toHaveLength(2)
+    expect(result.ideas[0].title.length).toBeGreaterThan(0)
+    vi.useRealTimers()
+  })
 })
