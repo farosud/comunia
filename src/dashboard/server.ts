@@ -12,6 +12,10 @@ import type { AgentCore } from '../agent/core.js'
 import type { Config } from '../config.js'
 import { PublicPortal } from '../community/public-portal.js'
 import { CloudPublishRegistry } from '../community/cloud-publish.js'
+import type { CommunitySiteGenerator } from '../community/site-generator.js'
+import type { ProductIdeas } from '../community/product-ideas.js'
+import { fetchRedditLinkSnapshot } from '../community/reddit-link-analysis.js'
+import { buildSubredditIdeasPayload, renderSubredditIdeasPage } from '../community/reddit-showcase.js'
 
 interface DashboardConfig {
   port: number
@@ -24,6 +28,8 @@ interface DashboardConfig {
   health: HealthMonitor
   config: Config
   agentCore?: AgentCore
+  productIdeas?: ProductIdeas
+  siteGenerator?: CommunitySiteGenerator
 }
 
 export function createDashboard(config: DashboardConfig) {
@@ -77,10 +83,50 @@ export function createDashboard(config: DashboardConfig) {
     health: config.health,
     config: config.config,
     agentCore: config.agentCore,
+    productIdeas: config.productIdeas,
   })
   app.route('/api', api)
 
   app.get('/community', (c) => c.redirect('/community.html'))
+  app.get('/community-json', (c) => c.redirect('/community-json.html'))
+
+  app.get('/r/*', async (c) => {
+    try {
+      const requestUrl = new URL(c.req.url)
+      const snapshot = await fetchRedditLinkSnapshot(`${requestUrl.pathname}${requestUrl.search}`)
+      const analysis = config.productIdeas
+        ? await config.productIdeas.analyzeExternalSignals({
+          community: {
+            name: snapshot.about?.title || (snapshot.subreddit ? `r/${snapshot.subreddit}` : 'Reddit community'),
+            type: 'distributed',
+            location: 'Reddit',
+          },
+          signalSummary: snapshot.signalSummary,
+          count: 3,
+        })
+        : null
+      const payload = buildSubredditIdeasPayload({
+        snapshot,
+        analysis,
+        requestedUrl: c.req.url,
+      })
+
+      if (requestUrl.pathname.endsWith('.json')) {
+        return c.json(payload)
+      }
+
+      return c.html(renderSubredditIdeasPage(payload))
+    } catch (error) {
+      const message = String(error instanceof Error ? error.message : error)
+      const status = /Only Reddit subreddit paths are supported/.test(message)
+        ? 400
+        : /status 404/.test(message)
+          ? 404
+          : 502
+
+      return c.json({ error: message }, status)
+    }
+  })
 
   app.post('/community-api/unlock', async (c) => {
     const body = await c.req.json().catch(() => ({}))
@@ -99,6 +145,15 @@ export function createDashboard(config: DashboardConfig) {
 
   app.get('/community-api/bootstrap', async (c) => {
     return c.json(await publicPortal.getPublicSnapshot())
+  })
+
+  app.get('/community-api/showcase-plan', async (c) => {
+    if (!config.siteGenerator) {
+      return c.json({ error: 'Showcase generation is unavailable in this runtime.' }, 503)
+    }
+
+    const refresh = c.req.query('refresh') === '1'
+    return c.json(await config.siteGenerator.generate({ refresh }))
   })
 
   app.post('/community-api/ideas/:id/vote', async (c) => {
