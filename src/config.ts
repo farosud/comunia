@@ -39,6 +39,9 @@ const configSchema = z.object({
     location: z.string().optional(),
     adminUserIds: z.string().default('').transform(s => s ? s.split(',').map(id => id.trim()) : []),
   }),
+  exa: z.object({
+    apiKey: z.string().optional(),
+  }),
   scheduler: z.object({
     reminderHoursBefore: z.string().default('48,2').transform(s => s.split(',').map(Number)),
     feedbackDelayHours: z.coerce.number().default(24),
@@ -50,6 +53,8 @@ const configSchema = z.object({
     memberSyncCron: z.string().default('*/15 * * * *'),
     communityIdeaCron: z.string().default('*/15 * * * *'),
     productIdeaCron: z.string().default('0 10 * * *'),
+    eventDiscoveryCron: z.string().default('*/30 * * * *'),
+    eventFeedIdeationCron: z.string().default('15 * * * *'),
   }),
   dashboard: z.object({
     host: z.string().default('127.0.0.1'),
@@ -108,6 +113,9 @@ export function loadConfig(): Config {
       location: process.env.COMMUNITY_LOCATION,
       adminUserIds: process.env.ADMIN_USER_IDS,
     },
+    exa: {
+      apiKey: process.env.EXA_API_KEY,
+    },
     scheduler: {
       reminderHoursBefore: process.env.REMINDER_HOURS_BEFORE,
       feedbackDelayHours: process.env.FEEDBACK_DELAY_HOURS,
@@ -119,6 +127,8 @@ export function loadConfig(): Config {
       memberSyncCron: process.env.MEMBER_SYNC_CRON,
       communityIdeaCron: process.env.COMMUNITY_IDEA_CRON,
       productIdeaCron: process.env.PRODUCT_IDEA_CRON,
+      eventDiscoveryCron: process.env.EVENT_DISCOVERY_CRON,
+      eventFeedIdeationCron: process.env.EVENT_FEED_IDEATION_CRON,
     },
     dashboard: {
       host: process.env.DASHBOARD_HOST,

@@ -8,6 +8,7 @@ import { UserProfileMemory } from '../memory/user-profile-memory.js'
 import { PublicPortal } from '../community/public-portal.js'
 import { CloudPublishRegistry } from '../community/cloud-publish.js'
 import { GroupPolicy } from '../community/group-policy.js'
+import { CommunityProfileStore } from '../community/profile.js'
 import type { ProductIdeas } from '../community/product-ideas.js'
 import type { ReasoningStream } from '../reasoning.js'
 import type { HealthMonitor } from '../health.js'
@@ -63,6 +64,23 @@ export function createApiRoutes(deps: ApiDeps): Hono {
       allowTelegramTopicCreation: body.allowTelegramTopicCreation,
     })
     return c.json(settings)
+  })
+
+  api.get('/community/profile', async (c) => {
+    const profile = await new CommunityProfileStore(deps.db, deps.config).getProfile()
+    return c.json(profile)
+  })
+
+  api.put('/community/profile', async (c) => {
+    const body = await c.req.json()
+    const profile = await new CommunityProfileStore(deps.db, deps.config).updateProfile({
+      city: body.city,
+      description: body.description,
+      interests: body.interests,
+      eventSearchCriteria: body.eventSearchCriteria,
+      ideationNotes: body.ideationNotes,
+    })
+    return c.json(profile)
   })
 
   api.get('/cloud/publish-credentials', async (c) => {

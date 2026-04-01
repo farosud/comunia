@@ -15,7 +15,7 @@ export interface JobContext {
   reasoning: ReasoningStream
   config: Config
   sendDm: (userId: string, message: string) => Promise<void>
-  sendGroup: (message: string) => Promise<void>
+  sendGroup: (message: string, options?: { messageThreadId?: number }) => Promise<void>
   db: any
   telegramMemberSync?: TelegramMemberSync
   productIdeas?: ProductIdeas

@@ -1,6 +1,6 @@
 import { loadConfig } from './config.js'
 import { createDb } from './db/index.js'
-import { TelegramBridge } from './bridges/telegram.js'
+import { TelegramBridge, type TelegramChatInfo, type TelegramMemberProfile } from './bridges/telegram.js'
 import { WhatsAppCloudBridge } from './bridges/whatsapp-cloud.js'
 import { createProvider } from './agent/providers/types.js'
 import { AgentMemory } from './memory/agent-memory.js'
@@ -23,6 +23,7 @@ import { CloudSyncClient } from './community/cloud-sync.js'
 import { GroupPolicy } from './community/group-policy.js'
 import { ProductIdeas } from './community/product-ideas.js'
 import { CommunitySiteGenerator } from './community/site-generator.js'
+import { TelegramEventsTopicStore } from './community/telegram-events-topic.js'
 import PQueue from 'p-queue'
 import path from 'path'
 import fs from 'fs'
@@ -73,6 +74,7 @@ export async function startApp() {
   const eventManager = new EventManager(db)
   const publicPortal = new PublicPortal(db, config)
   const groupPolicy = new GroupPolicy(db)
+  const telegramEventsTopic = new TelegramEventsTopicStore(db)
   const cloudOnlyMode = config.cloud.serverEnabled
     && !config.telegram.enabled
     && !config.whatsapp.enabled
@@ -132,14 +134,23 @@ export async function startApp() {
     }
   }
 
-  const sendGroup = async (message: string) => {
+  const sendGroup = async (message: string, options?: { messageThreadId?: number }) => {
     for (const bridge of bridges) {
       const groupId = bridge.platform === 'telegram'
-        ? config.telegram.groupChatId
+        ? (
+            bridge instanceof TelegramBridge
+              ? bridge.getCurrentGroupChatId() || config.telegram.groupChatId
+              : config.telegram.groupChatId
+          )
         : config.whatsapp.groupId
       if (groupId) {
-      try {
-          await bridge.sendMessage({ platform: bridge.platform, chatId: groupId, text: message })
+        try {
+          await bridge.sendMessage({
+            platform: bridge.platform,
+            chatId: groupId,
+            text: message,
+            messageThreadId: bridge.platform === 'telegram' ? options?.messageThreadId : undefined,
+          })
         } catch {}
       }
     }
@@ -209,6 +220,7 @@ export async function startApp() {
       botToken: config.telegram.botToken,
       groupChatId: config.telegram.groupChatId || '',
     })
+    let cachedTelegramBotLink = config.publicPortal.botUrl || ''
     telegramMemberSync = new TelegramMemberSync(
       db,
       userMemory,
@@ -216,8 +228,92 @@ export async function startApp() {
       telegram,
       config.telegram.groupChatId || undefined,
     )
+    const resolveTelegramBotLink = async () => {
+      if (cachedTelegramBotLink) return cachedTelegramBotLink
+      try {
+        const me = await telegram.getMe()
+        if (me.username) {
+          cachedTelegramBotLink = `https://t.me/${me.username}`
+        }
+      } catch {}
+      return cachedTelegramBotLink
+    }
+    const ensureTelegramEventsTopic = async (chat: TelegramChatInfo) => {
+      const state = telegramEventsTopic.getState()
+      if (state.chatId === chat.id && state.messageThreadId) return
+
+      const [chatInfo, botMember] = await Promise.all([
+        telegram.getChat(chat.id).catch(() => chat),
+        telegram.getBotChatMember(chat.id).catch(() => undefined),
+      ])
+
+      const isForumEnabled = chatInfo.type === 'supergroup' && chatInfo.isForum === true
+      const isAdmin = botMember?.status === 'administrator' || botMember?.status === 'creator'
+      const canManageTopics = botMember?.status === 'creator' || botMember?.can_manage_topics === true
+
+      if (!isForumEnabled || !isAdmin || !canManageTopics) {
+        if (telegramEventsTopic.shouldAskForPermissions()) {
+          await telegram.sendMessage({
+            platform: 'telegram',
+            chatId: chat.id,
+            text: buildEventsTopicPermissionMessage({
+              isForumEnabled,
+              isAdmin,
+              canManageTopics,
+            }),
+          }).catch(() => {})
+          telegramEventsTopic.markPermissionRequested()
+        }
+        return
+      }
+
+      try {
+        const topic = await telegram.createForumTopic(state.name || 'Events', chat.id)
+        telegramEventsTopic.saveTopic(chat.id, topic.messageThreadId, topic.name)
+        reasoning.emit_reasoning({
+          jobName: 'telegram-topic-setup',
+          level: 'decision',
+          message: `Created Telegram Events topic in ${chat.title || chat.id}.`,
+          data: { chatId: chat.id, messageThreadId: topic.messageThreadId },
+        })
+      } catch (error) {
+        reasoning.emit_reasoning({
+          jobName: 'telegram-topic-setup',
+          level: 'detail',
+          message: `Failed to create Telegram Events topic: ${String(error)}`,
+          data: { chatId: chat.id },
+        })
+      }
+    }
+    const sendAdminSetupPrompt = async (chat: TelegramChatInfo) => {
+      if (!await groupPolicy.shouldSendAdminSetupPrompt('telegram', chat.id)) return
+
+      const admins = await telegram.getChatAdministrators(chat.id).catch(() => [])
+      const humanAdmins = admins.filter((admin) => !admin.isBot)
+      const botLink = await resolveTelegramBotLink()
+
+      await telegram.sendMessage({
+        platform: 'telegram',
+        chatId: chat.id,
+        text: buildAdminSetupPromptMessage(humanAdmins, botLink),
+      }).catch(() => {})
+
+      await groupPolicy.markAdminSetupPromptSent('telegram', chat.id)
+    }
+    const welcomeNewMembers = async (chat: TelegramChatInfo, members: TelegramMemberProfile[]) => {
+      const humanMembers = members.filter((member) => !member.isBot)
+      if (humanMembers.length === 0) return
+
+      const botLink = await resolveTelegramBotLink()
+      await telegram.sendMessage({
+        platform: 'telegram',
+        chatId: chat.id,
+        text: buildJoinWelcomeMessage(botLink),
+      }).catch(() => {})
+    }
     telegram.onGroupConnected(async (chat) => {
       await telegramMemberSync!.handleBotAdded(chat)
+      await ensureTelegramEventsTopic(chat)
       if (await groupPolicy.shouldSendIntro('telegram', chat.id)) {
         await telegram.sendMessage({
           platform: 'telegram',
@@ -226,8 +322,15 @@ export async function startApp() {
         }).catch(() => {})
         await groupPolicy.markIntroSent('telegram', chat.id)
       }
+      await sendAdminSetupPrompt(chat)
     })
-    telegram.onMembersAdded((chat, members, source) => telegramMemberSync!.handleMembersAdded(chat, members, source))
+    telegram.onBotMemberUpdated(async (chat) => {
+      await ensureTelegramEventsTopic(chat)
+    })
+    telegram.onMembersAdded(async (chat, members, source) => {
+      await telegramMemberSync!.handleMembersAdded(chat, members, source)
+      await welcomeNewMembers(chat, members)
+    })
     telegram.onMemberStatusChanged((chat, member, oldStatus, newStatus, source) =>
       telegramMemberSync!.handleMemberStatusChange(chat, member, oldStatus, newStatus, source))
     telegram.onMessage(handleMessage)
@@ -350,6 +453,48 @@ function buildGroupIntroMessage(communityName: string, language: string) {
     `I'm here to help people make better connections, discover shared interests, and organize plans together. ` +
     `I'll stay mostly quiet in this group: by default I only speak here when an admin explicitly calls on me. ` +
     `If you want help organizing something, meeting the right people, or shaping an idea, message me 1:1.`
+}
+
+function buildEventsTopicPermissionMessage(input: {
+  isForumEnabled: boolean
+  isAdmin: boolean
+  canManageTopics: boolean
+}) {
+  const missing: string[] = []
+  if (!input.isAdmin) missing.push('promote me to admin')
+  if (!input.isForumEnabled) missing.push('enable Topics for this supergroup')
+  if (!input.canManageTopics) missing.push('turn on the Manage Topics permission for me')
+
+  return [
+    'I can set up the Events topic for this group, but I am still missing the Telegram setup needed to do it.',
+    missing.length > 0 ? `Please ${missing.join(', and ')}.` : '',
+    'Once that is enabled, I will create the Events topic automatically.',
+  ].filter(Boolean).join(' ')
+}
+
+function buildJoinWelcomeMessage(botLink?: string) {
+  const base = 'Welcome to the new cool Barrio of Buenos Aires, Please send me a dm so i can learn a bit more about you.'
+  if (botLink) {
+    return `${base} ${botLink}`
+  }
+  return `${base} Talk to me here in Telegram so you can open the DM.`
+}
+
+function buildAdminSetupPromptMessage(admins: TelegramMemberProfile[], botLink?: string) {
+  const mentions = admins
+    .map((admin) => admin.username ? `@${admin.username}` : admin.firstName)
+    .filter(Boolean)
+    .join(' ')
+
+  const intro = mentions
+    ? `${mentions} please DM me so I can gather the core information about this community and populate the soul.md for this group.`
+    : 'Admins, please DM me so I can gather the core information about this community and populate the soul.md for this group.'
+
+  if (botLink) {
+    return `${intro} ${botLink}`
+  }
+
+  return `${intro} Talk to me here in Telegram to open the DM.`
 }
 
 const isDirectExecution = process.argv[1] !== undefined

@@ -70,6 +70,19 @@ export class GroupPolicy {
     this.setSetting(introKey(platform, chatId), 'true')
   }
 
+  async shouldSendAdminSetupPrompt(platform: 'telegram' | 'whatsapp', chatId: string): Promise<boolean> {
+    await this.ensureDefaults()
+    const key = adminSetupKey(platform, chatId)
+    const row = this.db.select().from(communitySettings)
+      .where(eq(communitySettings.key, key))
+      .get()
+    return row?.value !== 'true'
+  }
+
+  async markAdminSetupPromptSent(platform: 'telegram' | 'whatsapp', chatId: string) {
+    this.setSetting(adminSetupKey(platform, chatId), 'true')
+  }
+
   private async ensureDefaults() {
     this.setSetting('group_response_mode', 'admin_only', true)
     this.setSetting('telegram_topic_creation_enabled', 'false', true)
@@ -96,6 +109,10 @@ export class GroupPolicy {
 
 function introKey(platform: 'telegram' | 'whatsapp', chatId: string) {
   return `group_intro_sent:${platform}:${chatId}`
+}
+
+function adminSetupKey(platform: 'telegram' | 'whatsapp', chatId: string) {
+  return `admin_setup_prompt_sent:${platform}:${chatId}`
 }
 
 function normalizeMode(value?: string): GroupResponseMode {

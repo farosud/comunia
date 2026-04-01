@@ -90,4 +90,25 @@ describe('TelegramBridge', () => {
     expect(topic.messageThreadId).toBe(77)
     expect(topic.name).toBe('AI Tools')
   })
+
+  it('passes message_thread_id when sending to a Telegram topic', async () => {
+    const bridge = new TelegramBridge({ botToken: FAKE_TOKEN, groupChatId: '-100123' })
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 55 })
+
+    ;(bridge as any).bot = {
+      api: { sendMessage },
+    }
+
+    await bridge.sendMessageWithMetadata({
+      platform: 'telegram',
+      chatId: '-100123',
+      text: 'Hello topic',
+      messageThreadId: 77,
+    })
+
+    expect(sendMessage).toHaveBeenCalledWith('-100123', 'Hello topic', {
+      reply_to_message_id: undefined,
+      message_thread_id: 77,
+    })
+  })
 })

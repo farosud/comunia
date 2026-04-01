@@ -33,6 +33,7 @@ No cloning needed — the setup wizard walks you through LLM provider selection,
 - **Live reasoning terminal** — Watch the agent think in real time. Every decision is logged with full chain-of-thought reasoning.
 - **Import historical data** — Ingest WhatsApp exports, Telegram JSON exports, or CSV files to bootstrap profiles and context from day one.
 - **Research jobs** — Automated cron jobs for venue search, event ideation, subgroup analysis, re-engagement campaigns, and weekly digests.
+- **Telegram Events topic automation** — When the bot is added to a topics-enabled Telegram supergroup with `Manage Topics`, it creates an `Events` topic, welcomes new members in the main chat, and posts curated event finds there.
 - **Smart DM targeting** — Selects the right members for each event based on interest scores, availability, and engagement history. Sends personalized invitations.
 - **Self-reflection and learning** — Nightly reflection job reviews what worked and what didn't, updating community-level and agent-level memory.
 - **Customizable personality** — Edit markdown files to shape the agent's voice, instructions, and accumulated knowledge.
@@ -180,6 +181,7 @@ Or run `npx comunia init` to generate it interactively.
 | `COMMUNITY_TYPE` | `local`, `distributed`, or `hybrid` | `local` |
 | `COMMUNITY_LOCATION` | City/region for local communities | — |
 | `ADMIN_USER_IDS` | Comma-separated admin user IDs | — |
+| `EXA_API_KEY` | Exa API key for city-event discovery and plan ideation | — |
 | `DASHBOARD_PORT` | Dashboard HTTP port | `3000` |
 | `DASHBOARD_SECRET` | Dashboard auth secret | — |
 

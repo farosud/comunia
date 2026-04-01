@@ -807,6 +807,21 @@
         '</div>' +
       '</div>' +
       '<div class="card" style="margin-bottom:1rem">' +
+        '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Community Profile For The Bot</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:1rem">This is the context the admin gives Comunia about the community. The event-search and event-idea jobs use it to decide what belongs in the Events topic.</p>' +
+        '<div style="display:grid;gap:0.75rem">' +
+          '<label>City<br><input id="community-profile-city" type="text" style="width:100%;margin-top:0.35rem" placeholder="Buenos Aires"></label>' +
+          '<label>Community description<br><textarea id="community-profile-description" rows="3" style="width:100%;margin-top:0.35rem" placeholder="Who is in this group, what brings them together, and what kind of social energy the group has."></textarea></label>' +
+          '<label>Interests and tastes<br><textarea id="community-profile-interests" rows="3" style="width:100%;margin-top:0.35rem" placeholder="Art openings, neighborhood dinners, startup talks, live music, weekend walks..."></textarea></label>' +
+          '<label>Event search criteria<br><textarea id="community-profile-search-criteria" rows="3" style="width:100%;margin-top:0.35rem" placeholder="Anything Exa should bias toward or avoid when looking for real city events."></textarea></label>' +
+          '<label>Plan ideation notes<br><textarea id="community-profile-ideation-notes" rows="3" style="width:100%;margin-top:0.35rem" placeholder="Neighborhoods, budgets, venue types, and plan styles that should shape generated ideas."></textarea></label>' +
+          '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" id="save-community-profile">Save community profile</button>' +
+            '<span id="community-profile-msg" class="save-msg"></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card" style="margin-bottom:1rem">' +
         '<h2 style="font-size:1.05rem;margin-bottom:0.75rem">Group Chat Behavior</h2>' +
         '<p style="color:var(--text-muted);margin-bottom:1rem">By default, Comunia should stay quiet in community groups and only respond when an admin explicitly calls on it. Conversations should happen 1:1 unless you change that here.</p>' +
         '<div style="display:grid;gap:0.75rem">' +
@@ -856,6 +871,16 @@
       $('#allow-telegram-topic-creation').checked = settings.allowTelegramTopicCreation === true;
     }).catch(function () {
       $('#group-settings-msg').textContent = 'Failed to load group settings';
+    });
+
+    apiJSON('/community/profile').then(function (profile) {
+      $('#community-profile-city').value = profile.city || '';
+      $('#community-profile-description').value = profile.description || '';
+      $('#community-profile-interests').value = profile.interests || '';
+      $('#community-profile-search-criteria').value = profile.eventSearchCriteria || '';
+      $('#community-profile-ideation-notes').value = profile.ideationNotes || '';
+    }).catch(function () {
+      $('#community-profile-msg').textContent = 'Failed to load community profile';
     });
 
     var saveBtn = $('#save-public-settings');
@@ -930,6 +955,50 @@
           .finally(function () {
             groupSaveBtn.disabled = false;
             groupSaveBtn.textContent = 'Save group behavior';
+          });
+      });
+    }
+
+    var profileSaveBtn = $('#save-community-profile');
+    if (profileSaveBtn) {
+      profileSaveBtn.addEventListener('click', function () {
+        profileSaveBtn.disabled = true;
+        profileSaveBtn.textContent = 'Saving...';
+        apiFetch('/community/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city: $('#community-profile-city').value.trim(),
+            description: $('#community-profile-description').value.trim(),
+            interests: $('#community-profile-interests').value.trim(),
+            eventSearchCriteria: $('#community-profile-search-criteria').value.trim(),
+            ideationNotes: $('#community-profile-ideation-notes').value.trim(),
+          }),
+        })
+          .then(function (r) {
+            return r.text().then(function (text) {
+              var data = text ? safeJSONParse(text) : {};
+              if (!r.ok) {
+                throw new Error((data && data.error) || ('Request failed (' + r.status + ')'));
+              }
+              return data;
+            });
+          })
+          .then(function (data) {
+            $('#community-profile-city').value = data.city || '';
+            $('#community-profile-description').value = data.description || '';
+            $('#community-profile-interests').value = data.interests || '';
+            $('#community-profile-search-criteria').value = data.eventSearchCriteria || '';
+            $('#community-profile-ideation-notes').value = data.ideationNotes || '';
+            $('#community-profile-msg').textContent = 'Saved';
+            setTimeout(function () { $('#community-profile-msg').textContent = ''; }, 2000);
+          })
+          .catch(function (error) {
+            $('#community-profile-msg').textContent = error && error.message ? error.message : 'Save failed';
+          })
+          .finally(function () {
+            profileSaveBtn.disabled = false;
+            profileSaveBtn.textContent = 'Save community profile';
           });
       });
     }

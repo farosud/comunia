@@ -14,6 +14,7 @@ export interface TelegramChatInfo {
   id: string
   type: string
   title?: string
+  isForum?: boolean
 }
 
 export interface TelegramMemberProfile {
@@ -39,6 +40,7 @@ export class TelegramBridge implements Bridge {
   private started = false
   private currentGroupChatId?: string
   private groupConnectedHandler?: (chat: TelegramChatInfo) => Promise<void>
+  private botMembershipUpdatedHandler?: (chat: TelegramChatInfo) => Promise<void>
   private membersAddedHandler?: (
     chat: TelegramChatInfo,
     members: TelegramMemberProfile[],
@@ -132,6 +134,10 @@ export class TelegramBridge implements Bridge {
 
         const oldStatus = update.old_chat_member.status
         const newStatus = update.new_chat_member.status
+        if (this.isActiveMemberStatus(newStatus)) {
+          this.currentGroupChatId = chat.id
+          await this.botMembershipUpdatedHandler?.(chat)
+        }
         if (this.isActiveMemberStatus(newStatus) && !this.isActiveMemberStatus(oldStatus)) {
           this.currentGroupChatId = chat.id
           await this.groupConnectedHandler?.(chat)
@@ -180,6 +186,7 @@ export class TelegramBridge implements Bridge {
   async sendMessageWithMetadata(msg: OutboundMessage): Promise<{ messageId: number }> {
     const sent = await this.bot.api.sendMessage(msg.chatId, msg.text, {
       reply_to_message_id: msg.replyTo ? Number(msg.replyTo) : undefined,
+      message_thread_id: msg.messageThreadId,
     })
     return { messageId: sent.message_id }
   }
@@ -202,6 +209,10 @@ export class TelegramBridge implements Bridge {
 
   onGroupConnected(handler: (chat: TelegramChatInfo) => Promise<void>): void {
     this.groupConnectedHandler = handler
+  }
+
+  onBotMemberUpdated(handler: (chat: TelegramChatInfo) => Promise<void>): void {
+    this.botMembershipUpdatedHandler = handler
   }
 
   onMembersAdded(
@@ -243,6 +254,25 @@ export class TelegramBridge implements Bridge {
     return this.bot.api.getChatMember(chatId, userId)
   }
 
+  async getChat(chatId = this.requireGroupChatId()): Promise<TelegramChatInfo> {
+    const chat: any = await this.bot.api.getChat(chatId)
+    return this.normalizeChat(chat)
+  }
+
+  async getMe(): Promise<{ id: number; username?: string; firstName: string }> {
+    const me = await this.bot.api.getMe()
+    return {
+      id: me.id,
+      username: me.username,
+      firstName: me.first_name,
+    }
+  }
+
+  async getBotChatMember(chatId = this.requireGroupChatId()): Promise<any> {
+    const me = await this.getMe()
+    return this.bot.api.getChatMember(chatId, me.id)
+  }
+
   async createForumTopic(name: string, chatId = this.requireGroupChatId()): Promise<TelegramForumTopic> {
     const topic = await this.bot.api.createForumTopic(chatId, name)
     return {
@@ -251,11 +281,12 @@ export class TelegramBridge implements Bridge {
     }
   }
 
-  private normalizeChat(chat: { id: number; type: string; title?: string }): TelegramChatInfo {
+  private normalizeChat(chat: { id: number; type: string; title?: string; is_forum?: boolean }): TelegramChatInfo {
     return {
       id: String(chat.id),
       type: chat.type,
       title: chat.title,
+      isForum: chat.is_forum,
     }
   }
 

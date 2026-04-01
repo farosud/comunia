@@ -121,6 +121,28 @@ describe('Dashboard API', () => {
     expect(data.allowTelegramTopicCreation).toBe(true)
   })
 
+  it('PUT /community/profile updates the admin-managed community context', async () => {
+    const res = await api.request('/community/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city: 'Buenos Aires',
+        description: 'A social neighborhood-style community for curious people.',
+        interests: 'art, dinners, parks, design',
+        eventSearchCriteria: 'prefer low-friction local events with a clear date and venue',
+        ideationNotes: 'bias toward Palermo, Chacarita, and walkable dinner plans',
+      }),
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.city).toBe('Buenos Aires')
+    expect(data.interests).toContain('art')
+
+    const getRes = await api.request('/community/profile')
+    const profile = await getRes.json()
+    expect(profile.ideationNotes).toContain('Palermo')
+  })
+
   it('POST /cloud/publish-credentials provisions a slug-specific publish token', async () => {
     const res = await api.request('/cloud/publish-credentials', {
       method: 'POST',

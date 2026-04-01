@@ -22,6 +22,7 @@ export interface OutboundMessage {
   chatId: string
   text: string
   replyTo?: string
+  messageThreadId?: number
 }
 
 export interface Bridge {

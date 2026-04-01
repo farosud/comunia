@@ -12,6 +12,8 @@ import { createProfileEnrichmentJob } from './jobs/profile-enrichment.js'
 import { createTelegramMemberSyncJob } from './jobs/member-sync.js'
 import { createCommunityIdeasJob } from './jobs/community-ideas.js'
 import { createProductIdeasJob } from './jobs/product-ideas.js'
+import { createCityEventDiscoveryJob } from './jobs/city-event-discovery.js'
+import { createEventFeedIdeationJob } from './jobs/event-feed-ideation.js'
 import type { Config } from '../config.js'
 
 export class Scheduler {
@@ -32,6 +34,8 @@ export class Scheduler {
       createTelegramMemberSyncJob(config.scheduler.memberSyncCron),
       createCommunityIdeasJob(config.scheduler.communityIdeaCron),
       createProductIdeasJob(config.scheduler.productIdeaCron),
+      createCityEventDiscoveryJob(config.scheduler.eventDiscoveryCron),
+      createEventFeedIdeationJob(config.scheduler.eventFeedIdeationCron),
     ]
   }
 

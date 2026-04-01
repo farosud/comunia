@@ -133,7 +133,7 @@ interface ToolContext {
   eventManager: EventManager
   userMemory: UserMemory
   sendDm: (userId: string, message: string) => Promise<void>
-  sendGroup: (message: string) => Promise<void>
+  sendGroup: (message: string, options?: { messageThreadId?: number }) => Promise<void>
   createGroupTopic?: (name: string) => Promise<{ messageThreadId: number; name: string }>
   groupPolicy?: GroupPolicy
 }
